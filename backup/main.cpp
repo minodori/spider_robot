@@ -11,12 +11,7 @@
 #include <ESP32Servo.h>
 
 /* WiFi AP 설정 --------------------------------------------------------------*/
-#ifndef ROBOT_ID
-  #define ROBOT_ID 1
-#endif
-#define _STR(x) #x
-#define _XSTR(x) _STR(x)
-const char* ap_ssid = "SpiderRobot" _XSTR(ROBOT_ID);
+const char* ap_ssid = "SpiderRobot";
 const char* ap_password = "12345678";
 WebServer server(80);
 
@@ -29,7 +24,7 @@ Servo servo_da, servo_df;  // Leg D (뒤오)
 // 핀 배치
 const int pin_aa = 26, pin_af = 12;  // Leg A
 const int pin_ba = 32, pin_bf = 33;  // Leg B
-const int pin_ca = 18, pin_cf = 2;   // Leg C
+const int pin_ca = 15, pin_cf = 2;   // Leg C
 const int pin_da = 17, pin_df = 5;   // Leg D
 
 // 서보 배열
@@ -41,18 +36,20 @@ const char* names[8] = {"aa", "af", "ba", "bf", "ca", "cf", "da", "df"};
 /* 방향 반전 설정 ------------------------------------------------------------*/
 // Arm: A,C 정방향, B,D 반전 (좌우 대칭)
 // Foot: 전부 정방향 (120°=수평으로 조립)
-bool reverseArm[4] = {false, false, false, false};  // A, B, C, D (혼 모두 위쪽)
+bool reverseArm[4] = {false, true, false, true};  // A, B, C, D
 bool reverseFoot[4] = {false, false, false, false};
 
 /* 현재 각도 -----------------------------------------------------------------*/
-int angle[8] = {90, 60, 90, 60, 90, 60, 90, 60};  // aa,af,ba,bf,ca,cf,da,df
+int angle[8] = {90, 40, 90, 40, 90, 40, 90, 40};  // aa,af,ba,bf,ca,cf,da,df
 
-/* 동작 범위 (PCBWay 네이밍) -------------------------------------------------*/
-int Fdw = 40;               // Foot down/stand (서있는 자세)
-int Fup = 60;               // Foot up limit
-int Afw = 45;               // Arm forward limit (팔이 전방으로 뻗은 상태)
-int Abw = 135;              // Arm backward limit (팔이 수평/후방 상태)
-int spd = 3;                // 속도 (delay ms)
+/* 초기 자세 -----------------------------------------------------------------*/
+int initArm[4] = {90, 90, 90, 90};   // 모든 팔 90° (몸체와 직각)
+int initFoot = 40;                    // 서있는 자세
+
+/* 동작 범위 -----------------------------------------------------------------*/
+int Fdw = 120, Fup = 40;   // Foot: 120(수평/슬립) ~ 40(완전 서기)
+int Abw = 45, Afw = 135;   // Arm: 45(좁게) ~ 135(넓게)
+int spd = 3;               // 속도 (delay ms)
 int ledPin = 23;
 
 /* 비동기 동작 ---------------------------------------------------------------*/
@@ -72,16 +69,6 @@ void ROUND(void);
 void flat_up(void);
 void flat_dw(void);
 void BLINK(void);
-void go_ahead(void);
-void Afoup(void); void Afodw(void);
-void Bfoup(void); void Bfodw(void);
-void Cfoup(void); void Cfodw(void);
-void Dfoup(void); void Dfodw(void);
-void armAfw(void); void armAbw(void);
-void armBfw(void); void armBbw(void);
-void armCfw(void); void armCbw(void);
-void armDfw(void); void armDbw(void);
-void armTo(int idx, int target);
 void handleAction(void);
 void startAction(int code);
 void actionTask(void* param);
@@ -93,20 +80,16 @@ void writeAA(int ang) { angle[0] = ang; servo_aa.write(reverseArm[0] ? 180-ang :
 void writeAF(int ang) { angle[1] = ang; servo_af.write(reverseFoot[0] ? 180-ang : ang); }
 void writeBA(int ang) { angle[2] = ang; servo_ba.write(reverseArm[1] ? 180-ang : ang); }
 void writeBF(int ang) { angle[3] = ang; servo_bf.write(reverseFoot[1] ? 180-ang : ang); }
-
 void writeCA(int ang) {
   angle[4] = ang;
-  // int adj = 180 - ang;  // 뒷다리: 각도 반전
-  // servo_ca.write(reverseArm[2] ? 180-adj : adj);
-  servo_ca.write(reverseArm[2] ? 180-ang : ang);
+  int adj = 180 - ang;  // 뒷다리: 각도 반전
+  servo_ca.write(reverseArm[2] ? 180-adj : adj);
 }
 void writeCF(int ang) { angle[5] = ang; servo_cf.write(reverseFoot[2] ? 180-ang : ang); }
-
 void writeDA(int ang) {
   angle[6] = ang;
-  // int adj = 180 - ang;  // 뒷다리: 각도 반전
-  // servo_da.write(reverseArm[3] ? 180-adj : adj);
-  servo_da.write(reverseArm[3] ? 180-ang : ang);
+  int adj = 180 - ang;  // 뒷다리: 각도 반전
+  servo_da.write(reverseArm[3] ? 180-adj : adj);
 }
 void writeDF(int ang) { angle[7] = ang; servo_df.write(reverseFoot[3] ? 180-ang : ang); }
 
@@ -130,7 +113,7 @@ const char index_html[] PROGMEM = R"rawliteral(
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-  <title>%TITLE%</title>
+  <title>Spider Robot</title>
   <style>
     *{box-sizing:border-box;margin:0;padding:0}
     body{font-family:Arial;background:linear-gradient(135deg,#1a1a2e,#16213e);min-height:100vh;display:flex;flex-direction:column;align-items:center;padding:20px;color:#fff}
@@ -151,7 +134,7 @@ const char index_html[] PROGMEM = R"rawliteral(
   </style>
 </head>
 <body>
-  <h1>🕷️ %TITLE%</h1>
+  <h1>🕷️ Spider Robot</h1>
   <div class="status">상태: <span id="st">대기</span></div>
   <div class="pad">
     <div class="btn empty"></div>
@@ -235,112 +218,84 @@ void BLINK() {
 
 void stall() {
   BLINK();
-  writeAA(90); writeBA(90); writeCA(90); writeDA(90);
-  writeAF(Fdw); writeBF(Fdw); writeCF(Fdw); writeDF(Fdw);
-}
-
-void flat_dw() {
-  // 일어서기: Fdw → Fup+50
-  writeAF(Fdw); writeBF(Fdw); writeCF(Fdw); writeDF(Fdw);
-  delay(500);
-  for (int i = Fdw; i <= Fup + 50; i++) {
-    writeAF(i); writeBF(i); writeCF(i); writeDF(i);
-    delay(spd);
-  }
-  delay(500);
+  writeAA(initArm[0]); writeBA(initArm[1]);
+  writeCA(initArm[2]); writeDA(initArm[3]);
+  writeAF(initFoot); writeBF(initFoot);
+  writeCF(initFoot); writeDF(initFoot);
 }
 
 void flat_up() {
-  // 앉기: Fup → Fdw
-  writeAF(Fup); writeBF(Fup); writeCF(Fup); writeDF(Fup);
-  delay(500);
-  for (int i = Fup; i >= Fdw; i--) {
+  // 일어서기: 현재 → 40° (다리 세움)
+  int start = initFoot;
+  int end = Fup;  // 40
+  writeAF(start); writeBF(start); writeCF(start); writeDF(start);
+  delay(300);
+  for (int i = start; i >= end; i--) {
     writeAF(i); writeBF(i); writeCF(i); writeDF(i);
     delay(spd);
   }
-  delay(500);
 }
 
-/* PCBWay 스타일 헬퍼 함수 ---------------------------------------------------*/
-// 몸 밀기: A,D → Abw→Afw / B,C → Afw→Abw (교차)
-void go_ahead() {
-  for (int i = Abw; i >= Afw; i--) {
-    writeAA(i); writeDA(i);
-    int y = Afw + Abw - i;
-    writeBA(y); writeCA(y);
+void flat_dw() {
+  // 앉기: 현재 → 120° (다리 수평)
+  int start = initFoot;
+  int end = Fdw;  // 120
+  writeAF(start); writeBF(start); writeCF(start); writeDF(start);
+  delay(300);
+  for (int i = start; i <= end; i++) {
+    writeAF(i); writeBF(i); writeCF(i); writeDF(i);
     delay(spd);
   }
 }
 
-// Foot up/down (Fdw=40 서있는 자세, Fup=60 발 들림 → 증가 방향이 up)
-void Afoup() { for (int i = Fdw; i <= Fup; i++) { writeAF(i); delay(spd); } }
-void Afodw() { for (int i = Fup; i >= Fdw; i--) { writeAF(i); delay(spd); } }
-void Bfoup() { for (int i = Fdw; i <= Fup; i++) { writeBF(i); delay(spd); } }
-void Bfodw() { for (int i = Fup; i >= Fdw; i--) { writeBF(i); delay(spd); } }
-void Cfoup() { for (int i = Fdw; i <= Fup; i++) { writeCF(i); delay(spd); } }
-void Cfodw() { for (int i = Fup; i >= Fdw; i--) { writeCF(i); delay(spd); } }
-void Dfoup() { for (int i = Fdw; i <= Fup; i++) { writeDF(i); delay(spd); } }
-void Dfodw() { for (int i = Fup; i >= Fdw; i--) { writeDF(i); delay(spd); } }
-
-// 현재 위치 → 목표 각도 이동 (idx: 0=aa,2=ba,4=ca,6=da)
-void armTo(int idx, int target) {
-  int cur = angle[idx];
-  if (cur < target) { for (int i = cur; i <= target; i++) { writeServo(idx, i); delay(spd); } }
-  else              { for (int i = cur; i >= target; i--) { writeServo(idx, i); delay(spd); } }
-}
-
-// Single arm movements (fw = 전방 Afw=45로 이동, bw = 후방 Abw=135로 이동)
-void armAfw() { for (int i = Abw; i >= Afw; i--) { writeAA(i); delay(spd); } }
-void armAbw() { for (int i = Afw; i <= Abw; i++) { writeAA(i); delay(spd); } }
-void armBfw() { for (int i = Abw; i >= Afw; i--) { writeBA(i); delay(spd); } }
-void armBbw() { for (int i = Afw; i <= Abw; i++) { writeBA(i); delay(spd); } }
-void armCfw() { for (int i = Abw; i >= Afw; i--) { writeCA(i); delay(spd); } }
-void armCbw() { for (int i = Afw; i <= Abw; i++) { writeCA(i); delay(spd); } }
-void armDfw() { for (int i = Abw; i >= Afw; i--) { writeDA(i); delay(spd); } }
-void armDbw() { for (int i = Afw; i <= Abw; i++) { writeDA(i); delay(spd); } }
-
 void WALK() {
-  // go_ahead();
-  // Afoup(); armAfw(); Afodw();
-  // Cfoup(); armCbw(); Cfodw();
-  // Bfoup(); armBbw(); Bfodw();
-  // Dfoup(); armDfw(); Dfodw();
-  Afoup(); // Foot을 올린다
-  armTo(0, Afw);
-  Afodw(); // Foot을 놓는다 
-  Dfoup(); // Foot을 올린다
-  armTo(0, Abw);
-
-  // Dfoup(); // Foot을 올린다
-  armTo(6, Abw);
-  Dfodw(); // Foot을 내린다.
-  armTo(6, Afw);
-  Dfoup(); // Foot을 올린다
-  armTo(6, Abw);
-  Dfodw(); // Foot을 내린다.
-
-  Bfoup(); // Foot을 올린다
-  armTo(2, Abw);
-  Bfodw(); // Foot을 놓는다 
-  Cfoup(); // Foot을 올린다
-  armTo(2, Afw);
-
-  // Cfoup(); // Foot을 올린다
-  armTo(4, Afw);
-  Cfodw(); // Foot을 내린다.
-  armTo(4, Abw);
-  Cfoup(); // Foot을 올린다
-  armTo(4, Afw);
-  Cfodw(); // Foot을 내린다.
-
+  // 전진: 대각선 다리 교대
+  for (int i = Afw; i >= Abw; i--) {
+    writeAA(i); writeDA(i);
+    int y = Abw + Afw - i;
+    writeBA(y); writeCA(y);
+    delay(spd);
+  }
+  // A: foot up - arm forward - foot down
+  for (int i = initFoot; i >= Fup; i--) { writeAF(i); delay(spd); }
+  for (int i = Abw; i <= Afw; i++) { writeAA(i); delay(spd); }
+  for (int i = Fup; i <= initFoot; i++) { writeAF(i); delay(spd); }
+  // C: foot up - arm forward - foot down
+  for (int i = initFoot; i >= Fup; i--) { writeCF(i); delay(spd); }
+  for (int i = Abw; i <= Afw; i++) { writeCA(i); delay(spd); }
+  for (int i = Fup; i <= initFoot; i++) { writeCF(i); delay(spd); }
+  // B: foot up - arm forward - foot down
+  for (int i = initFoot; i >= Fup; i--) { writeBF(i); delay(spd); }
+  for (int i = Abw; i <= Afw; i++) { writeBA(i); delay(spd); }
+  for (int i = Fup; i <= initFoot; i++) { writeBF(i); delay(spd); }
+  // D: foot up - arm forward - foot down
+  for (int i = initFoot; i >= Fup; i--) { writeDF(i); delay(spd); }
+  for (int i = Abw; i <= Afw; i++) { writeDA(i); delay(spd); }
+  for (int i = Fup; i <= initFoot; i++) { writeDF(i); delay(spd); }
 }
 
 void ROUND() {
-  armAfw(); armBfw(); armCfw(); armDfw();
-  Afoup(); armAbw(); Afodw();
-  Bfoup(); armBbw(); Bfodw();
-  Cfoup(); armCbw(); Cfodw();
-  Dfoup(); armDbw(); Dfodw();
+  // 모든 팔 벌리기
+  for (int i = 90; i <= Afw; i++) {
+    writeAA(i); writeBA(i); writeCA(i); writeDA(i);
+    delay(spd);
+  }
+  // A: foot up - arm 좁히기 - foot down
+  for (int i = initFoot; i >= Fup; i--) { writeAF(i); delay(spd); }
+  for (int i = Afw; i >= Abw; i--) { writeAA(i); delay(spd); }
+  for (int i = Fup; i <= initFoot; i++) { writeAF(i); delay(spd); }
+  // B: foot up - arm 좁히기 - foot down
+  for (int i = initFoot; i >= Fup; i--) { writeBF(i); delay(spd); }
+  for (int i = Afw; i >= Abw; i--) { writeBA(i); delay(spd); }
+  for (int i = Fup; i <= initFoot; i++) { writeBF(i); delay(spd); }
+  // C: foot up - arm 좁히기 - foot down
+  for (int i = initFoot; i >= Fup; i--) { writeCF(i); delay(spd); }
+  for (int i = Afw; i >= Abw; i--) { writeCA(i); delay(spd); }
+  for (int i = Fup; i <= initFoot; i++) { writeCF(i); delay(spd); }
+  // D: foot up - arm 좁히기 - foot down
+  for (int i = initFoot; i >= Fup; i--) { writeDF(i); delay(spd); }
+  for (int i = Afw; i >= Abw; i--) { writeDA(i); delay(spd); }
+  for (int i = Fup; i <= initFoot; i++) { writeDF(i); delay(spd); }
 }
 
 /* Setup ---------------------------------------------------------------------*/
@@ -363,11 +318,7 @@ void setup() {
   Serial.printf("IP: %s\n", WiFi.softAPIP().toString().c_str());
 
   // 웹서버
-  server.on("/", []() {
-    String page = index_html;
-    page.replace("%TITLE%", ap_ssid);
-    server.send(200, "text/html", page);
-  });
+  server.on("/", []() { server.send(200, "text/html", index_html); });
   server.on("/action", handleAction);
   server.begin();
 
@@ -405,21 +356,12 @@ void loop() {
       stall();
       Serial.println("서보 ON");
     }
-    else if (cmd == "stl" || cmd == "init") { stall(); Serial.println("초기자세"); }
-    else if (cmd == "wlk") { WALK(); Serial.println("Walk 완료"); }
-    else if (cmd == "rnd") { ROUND(); Serial.println("Round 완료"); }
+    else if (cmd == "stall" || cmd == "init") { stall(); Serial.println("초기자세"); }
+    else if (cmd == "walk") { WALK(); Serial.println("Walk 완료"); }
+    else if (cmd == "round") { ROUND(); Serial.println("Round 완료"); }
     else if (cmd == "up") { flat_up(); Serial.println("Up 완료"); }
-    else if (cmd == "dn") { flat_dw(); Serial.println("Down 완료"); }
-    else if (cmd.startsWith("spd")) {
-      int val = cmd.substring(3).toInt();
-      if (val >= 1 && val <= 10) {
-        spd = 11 - val;
-        Serial.printf("속도: %d (delay=%dms)\n", val, spd);
-      } else {
-        Serial.printf("속도 범위 오류 (1~10), 현재: %d\n", 11 - spd);
-      }
-    }
-    else if (cmd == "sts") {
+    else if (cmd == "down") { flat_dw(); Serial.println("Down 완료"); }
+    else if (cmd == "status") {
       Serial.println("\n[상태]");
       Serial.println(" Leg | Arm(pin) | Foot(pin) | Arm° | Foot°");
       Serial.println("-----|----------|-----------|------|------");
@@ -437,11 +379,10 @@ void loop() {
       Serial.println("\n[명령어]");
       Serial.println(" aa90, bf60  - 개별 서보 (다리a~d, arm/foot, 각도)");
       Serial.println(" off/on      - 서보 끄기/켜기");
-      Serial.println(" spd1~10     - 속도 설정 (1=느림, 10=빠름)");
-      Serial.println(" stl(stall)       - 초기 자세");
-      Serial.println(" wlk(walk)/rnd(round)  - 걷기/회전");
-      Serial.println(" up/dn(down)     - 일어서기/앉기");
-      Serial.println(" sts(status)      - 상태 확인\n");
+      Serial.println(" stall       - 초기 자세");
+      Serial.println(" walk/round  - 걷기/회전");
+      Serial.println(" up/down     - 일어서기/앉기");
+      Serial.println(" status      - 상태 확인\n");
     }
   }
   delay(1);
