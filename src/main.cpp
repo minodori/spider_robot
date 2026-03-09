@@ -48,15 +48,17 @@ bool reverseFoot[4] = {false, false, false, false};
 int angle[8] = {90, 60, 90, 60, 90, 60, 90, 60};  // aa,af,ba,bf,ca,cf,da,df
 
 /* 동작 범위 (PCBWay 네이밍) -------------------------------------------------*/
-int Fdw = 40;               // Foot down/stand (서있는 자세)
+int Fdw = 30;               // Foot down/stand (서있는 자세)
 int Fup = 60;               // Foot up limit
 int Afw = 45;               // Arm forward limit (팔이 전방으로 뻗은 상태)
+int Astl = 90;           // Arm 중간 위치
 int Abw = 135;              // Arm backward limit (팔이 수평/후방 상태)
 int spd = 3;                // 속도 (delay ms)
 int ledPin = 23;
 
 /* 비동기 동작 ---------------------------------------------------------------*/
 volatile bool action_running = false;
+volatile bool loop_running = false;   // 연속 반복 중 여부
 TaskHandle_t ActionTask = NULL;
 
 /* 함수 선언 -----------------------------------------------------------------*/
@@ -83,7 +85,9 @@ void armCfw(void); void armCbw(void);
 void armDfw(void); void armDbw(void);
 void armTo(int idx, int target);
 void handleAction(void);
-void startAction(int code);
+void stopAction(void);
+void startOnceAction(int code);
+void startLoopAction(int code);
 void actionTask(void* param);
 
 /* 서보 제어 (방향 보정) -----------------------------------------------------*/
@@ -167,6 +171,7 @@ const char index_html[] PROGMEM = R"rawliteral(
   <div class="grid">
     <button class="btn act" onclick="cmd('up')">⬆️ Up</button>
     <button class="btn act" onclick="cmd('down')">⬇️ Down</button>
+    <button class="btn act" onclick="cmd('updn')">↕️ UpDn</button>
     <button class="btn act" onclick="cmd('round')">🔄 Round</button>
     <button class="btn act" onclick="cmd('init')">🔧 Init</button>
   </div>
@@ -186,14 +191,17 @@ void handleAction() {
   String cmd = server.arg("cmd");
   String res = "OK";
 
-  if (action_running) { res = "동작중"; }
-  else if (cmd == "walk") { res = "전진"; startAction(1); }
-  else if (cmd == "left" || cmd == "right") { res = "회전"; startAction(2); }
-  else if (cmd == "up") { res = "일어서기"; startAction(3); }
-  else if (cmd == "down") { res = "앉기"; startAction(4); }
-  else if (cmd == "round") { res = "회전"; startAction(2); }
-  else if (cmd == "stop" || cmd == "init") { res = "정지"; startAction(5); }
+  if (cmd == "stop" || cmd == "init") { stopAction(); res = "정지"; }
   else if (cmd == "speed") { spd = 11 - server.arg("val").toInt(); res = "속도설정"; }
+  else {
+    int code = 0;
+    if      (cmd == "walk")                          { res = "전진(연속)"; code = 1; }
+    else if (cmd == "left" || cmd == "right" || cmd == "round") { res = "회전(연속)"; code = 2; }
+    else if (cmd == "up")   { startOnceAction(3); res = "일어서기"; }
+    else if (cmd == "down") { startOnceAction(4); res = "앉기"; }
+    else if (cmd == "updn") { res = "Up-Dn(연속)"; code = 5; }
+    if (code) startLoopAction(code);
+  }
 
   server.send(200, "text/plain", res);
 }
@@ -205,13 +213,15 @@ void actionTask(void* param) {
   action_running = true;
   digitalWrite(ledPin, HIGH);
 
-  switch(act) {
-    case 1: WALK(); break;
-    case 2: ROUND(); break;
-    case 3: flat_up(); break;
-    case 4: flat_dw(); break;
-    case 5: stall(); break;
-  }
+  do {
+    switch(act) {
+      case 1: WALK(); break;
+      case 2: ROUND(); break;
+      case 3: flat_up(); break;
+      case 4: flat_dw(); break;
+      case 5: flat_up(); flat_dw(); break;  // up-dn 교대
+    }
+  } while (loop_running);
 
   digitalWrite(ledPin, LOW);
   action_running = false;
@@ -219,10 +229,41 @@ void actionTask(void* param) {
   vTaskDelete(NULL);
 }
 
-void startAction(int code) {
-  if (action_running || ActionTask) return;
+// 1회 동작 시작 (기존 동작 강제 중단 후 한 번만 실행)
+void startOnceAction(int code) {
+  if (ActionTask) {
+    loop_running = false;
+    vTaskDelete(ActionTask);
+    ActionTask = NULL;
+    action_running = false;
+  }
+  loop_running = false;
   int* p = new int(code);
   xTaskCreatePinnedToCore(actionTask, "Act", 4096, p, 1, &ActionTask, 0);
+}
+
+// 연속 동작 시작 (기존 동작 강제 중단 후 새 동작 시작)
+void startLoopAction(int code) {
+  if (ActionTask) {
+    loop_running = false;
+    vTaskDelete(ActionTask);
+    ActionTask = NULL;
+    action_running = false;
+  }
+  loop_running = true;
+  int* p = new int(code);
+  xTaskCreatePinnedToCore(actionTask, "Act", 4096, p, 1, &ActionTask, 0);
+}
+
+// 연속 동작 정지
+void stopAction() {
+  loop_running = false;
+  if (ActionTask) {
+    vTaskDelete(ActionTask);
+    ActionTask = NULL;
+  }
+  action_running = false;
+  stall();
 }
 
 /* 동작 함수 -----------------------------------------------------------------*/
@@ -235,8 +276,17 @@ void BLINK() {
 
 void stall() {
   BLINK();
-  writeAA(90); writeBA(90); writeCA(90); writeDA(90);
-  writeAF(Fdw); writeBF(Fdw); writeCF(Fdw); writeDF(Fdw);
+  // 현재 위치에서 초기자세(arm=Astl, foot=Fdw)까지 spd 속도로 동시 이동
+  int targets[8] = {Astl, Fdw, Astl, Fdw, Astl, Fdw, Astl, Fdw};
+  bool done = false;
+  while (!done) {
+    done = true;
+    for (int i = 0; i < 8; i++) {
+      if      (angle[i] < targets[i]) { writeServo(i, angle[i] + 1); done = false; }
+      else if (angle[i] > targets[i]) { writeServo(i, angle[i] - 1); done = false; }
+    }
+    delay(spd);
+  }
 }
 
 void flat_dw() {
@@ -300,39 +350,22 @@ void armDfw() { for (int i = Abw; i >= Afw; i--) { writeDA(i); delay(spd); } }
 void armDbw() { for (int i = Afw; i <= Abw; i++) { writeDA(i); delay(spd); } }
 
 void WALK() {
-  // go_ahead();
-  // Afoup(); armAfw(); Afodw();
-  // Cfoup(); armCbw(); Cfodw();
-  // Bfoup(); armBbw(); Bfodw();
-  // Dfoup(); armDfw(); Dfodw();
-  Afoup(); // Foot을 올린다
-  armTo(0, Afw);
-  Afodw(); // Foot을 놓는다 
-  Dfoup(); // Foot을 올린다
-  armTo(0, Abw);
+  // 정적 크리프 보행: 한 다리씩 들어 전방에 놓고, 지지발로 뒤로 당겨 전진
+  // 순서: A→D→B→C (대각선 쌍)
+  // A,C: 전방=Afw(45°), 후방=Abw(135°)
+  // B,D: 전방=Abw(135°), 후방=Afw(45°)  ← B,D는 A,C 반대 방향
 
-  // Dfoup(); // Foot을 올린다
-  armTo(6, Abw);
-  Dfodw(); // Foot을 내린다.
-  armTo(6, Afw);
-  Dfoup(); // Foot을 올린다
-  armTo(6, Abw);
-  Dfodw(); // Foot을 내린다.
+  // A: 들고 → 전방(45°) 놓고 → 뒤로 당김(135°)
+  Afoup(); armTo(0, Afw); Afodw(); armTo(0, Abw);
 
-  Bfoup(); // Foot을 올린다
-  armTo(2, Abw);
-  Bfodw(); // Foot을 놓는다 
-  Cfoup(); // Foot을 올린다
-  armTo(2, Afw);
+  // D: 들고 → 전방(135°) 놓고 → 뒤로 당김(45°)
+  Dfoup(); armTo(6, Abw); Dfodw(); armTo(6, Afw);
 
-  // Cfoup(); // Foot을 올린다
-  armTo(4, Afw);
-  Cfodw(); // Foot을 내린다.
-  armTo(4, Abw);
-  Cfoup(); // Foot을 올린다
-  armTo(4, Afw);
-  Cfodw(); // Foot을 내린다.
+  // B: 들고 → 전방(135°) 놓고 → 뒤로 당김(45°)
+  Bfoup(); armTo(2, Abw); Bfodw(); armTo(2, Afw);
 
+  // C: 들고 → 전방(45°) 놓고 → 뒤로 당김(135°)
+  Cfoup(); armTo(4, Afw); Cfodw(); armTo(4, Abw);
 }
 
 void ROUND() {
@@ -378,10 +411,30 @@ void setup() {
 void loop() {
   server.handleClient();
 
-  if (Serial.available()) {
-    String cmd = Serial.readStringUntil('\n');
-    cmd.trim();
-    cmd.toLowerCase();
+  static String serialBuf = "";
+
+  while (Serial.available()) {
+    char c = (char)Serial.read();
+
+    if (c == ' ') {
+      // 스페이스: 즉시 정지 (엔터 불필요)
+      stopAction();
+      Serial.println("[SPACE] 정지");
+      serialBuf = "";
+      continue;
+    } else if (c == '\r') {
+      continue;  // CR 무시
+    } else if (c != '\n') {
+      serialBuf += c;
+      continue;
+    }
+
+    // '\n' 수신: 버퍼 처리
+    serialBuf.trim();
+    serialBuf.toLowerCase();
+    if (serialBuf.length() == 0) { serialBuf = ""; continue; }
+    String cmd = serialBuf;
+    serialBuf = "";
     Serial.printf("> %s\n", cmd.c_str());
 
     // 개별 서보: aa90, bf60 등
@@ -405,11 +458,13 @@ void loop() {
       stall();
       Serial.println("서보 ON");
     }
-    else if (cmd == "stl" || cmd == "init") { stall(); Serial.println("초기자세"); }
-    else if (cmd == "wlk") { WALK(); Serial.println("Walk 완료"); }
-    else if (cmd == "rnd") { ROUND(); Serial.println("Round 완료"); }
-    else if (cmd == "up") { flat_up(); Serial.println("Up 완료"); }
-    else if (cmd == "dn") { flat_dw(); Serial.println("Down 완료"); }
+    else if (cmd == "stl" || cmd == "init") { stopAction(); Serial.println("초기자세"); }
+    else if (cmd == "stop") { stopAction(); Serial.println("정지"); }
+    else if (cmd == "wlk") { startLoopAction(1); Serial.println("전진(연속) 시작 - stop으로 정지"); }
+    else if (cmd == "rnd") { startLoopAction(2); Serial.println("회전(연속) 시작 - stop으로 정지"); }
+    else if (cmd == "up")   { startOnceAction(3); Serial.println("일어서기 (1회)"); }
+    else if (cmd == "dn")   { startOnceAction(4); Serial.println("앉기 (1회)"); }
+    else if (cmd == "updn") { startLoopAction(5); Serial.println("Up-Dn(연속) 시작 - stop으로 정지"); }
     else if (cmd.startsWith("spd")) {
       int val = cmd.substring(3).toInt();
       if (val >= 1 && val <= 10) {
@@ -438,10 +493,12 @@ void loop() {
       Serial.println(" aa90, bf60  - 개별 서보 (다리a~d, arm/foot, 각도)");
       Serial.println(" off/on      - 서보 끄기/켜기");
       Serial.println(" spd1~10     - 속도 설정 (1=느림, 10=빠름)");
-      Serial.println(" stl(stall)       - 초기 자세");
-      Serial.println(" wlk(walk)/rnd(round)  - 걷기/회전");
-      Serial.println(" up/dn(down)     - 일어서기/앉기");
-      Serial.println(" sts(status)      - 상태 확인\n");
+      Serial.println(" stl/init        - 초기 자세 (정지)");
+      Serial.println(" stop(+엔터)/스페이스 - 연속 동작 즉시 정지");
+      Serial.println(" wlk/rnd         - 걷기/회전 (연속 반복)");
+      Serial.println(" up/dn           - 일어서기/앉기 (1회)");
+      Serial.println(" updn            - 일어서기-앉기 교대 (연속 반복)");
+      Serial.println(" sts(status)     - 상태 확인\n");
     }
   }
   delay(1);
