@@ -38,27 +38,32 @@ Servo* servos[8] = {&servo_aa, &servo_af, &servo_ba, &servo_bf,
 const int pins[8] = {pin_aa, pin_af, pin_ba, pin_bf, pin_ca, pin_cf, pin_da, pin_df};
 const char* names[8] = {"aa", "af", "ba", "bf", "ca", "cf", "da", "df"};
 
-/* 방향 반전 설정 ------------------------------------------------------------*/
-// Arm: A,C 정방향, B,D 반전 (좌우 대칭)
-// Foot: 전부 정방향 (120°=수평으로 조립)
-bool reverseArm[4] = {false, false, false, false};  // A, B, C, D (혼 모두 위쪽)
-bool reverseFoot[4] = {false, false, false, false};
+/* 팔 서보 보행 파라미터 ------------------------------------------------------*/
+// 모든 서보는 물리 각도를 직접 기록 (변환 없음)
+// contact: swing 후 발이 닿는 위치 (물리각)
+// armDir:  stance 이동 방향 (+1=각도 증가, -1=감소)
+// stride:  stance 이동량(°) → toeoff = contact + armDir * stride
+// phyStl:  중립(대각선) 물리각
+//                        A    B    C    D
+int phyContact[4]  = {100,  80,  30, 150};  // swing-contact 물리각
+int armDir[4]      = {  1,  -1,   1,  -1};  // +1: CW, -1: CCW
+int stride         = 50;                     // stance 구간 (°)
+int phyStl[4]      = { 90,  90,  90,  90};  // 중립 물리각
 
-/* 현재 각도 -----------------------------------------------------------------*/
-int angle[8] = {90, 60, 90, 60, 90, 60, 90, 60};  // aa,af,ba,bf,ca,cf,da,df
+inline int phyToeoff(int leg) { return phyContact[leg] + armDir[leg] * stride; }
 
-/* 동작 범위 (PCBWay 네이밍) -------------------------------------------------*/
-int Fdw = 30;               // Foot down/stand (서있는 자세)
-int Fup = 60;               // Foot up limit
-int Afw = 45;               // Arm forward limit (팔이 전방으로 뻗은 상태)
-int Astl = 90;           // Arm 중간 위치
-int Abw = 135;              // Arm backward limit (팔이 수평/후방 상태)
-int spd = 3;                // 속도 (delay ms)
+/* 발 서보 범위 --------------------------------------------------------------*/
+int Fdw = 30;   // 서있는 자세 (발 아래)
+int Fup = 60;   // 발 든 자세
+int spd = 3;    // 속도 (delay ms)
 int ledPin = 23;
+
+/* 현재 각도 (물리각) ---------------------------------------------------------*/
+int angle[8] = {90, 30, 90, 30, 90, 30, 90, 30};  // aa,af,ba,bf,ca,cf,da,df
 
 /* 비동기 동작 ---------------------------------------------------------------*/
 volatile bool action_running = false;
-volatile bool loop_running = false;   // 연속 반복 중 여부
+volatile bool loop_running = false;
 TaskHandle_t ActionTask = NULL;
 
 /* 함수 선언 -----------------------------------------------------------------*/
@@ -74,7 +79,6 @@ void ROUND(void);
 void flat_up(void);
 void flat_dw(void);
 void BLINK(void);
-void go_ahead(void);
 void Afoup(void); void Afodw(void);
 void Bfoup(void); void Bfodw(void);
 void Cfoup(void); void Cfodw(void);
@@ -90,29 +94,15 @@ void startOnceAction(int code);
 void startLoopAction(int code);
 void actionTask(void* param);
 
-/* 서보 제어 (방향 보정) -----------------------------------------------------*/
-// A,B: 앞다리 - 각도 그대로
-// C,D: 뒷다리 - 180-ang로 반전 (같은 각도 = 대칭 동작)
-void writeAA(int ang) { angle[0] = ang; servo_aa.write(reverseArm[0] ? 180-ang : ang); }
-void writeAF(int ang) { angle[1] = ang; servo_af.write(reverseFoot[0] ? 180-ang : ang); }
-void writeBA(int ang) { angle[2] = ang; servo_ba.write(reverseArm[1] ? 180-ang : ang); }
-void writeBF(int ang) { angle[3] = ang; servo_bf.write(reverseFoot[1] ? 180-ang : ang); }
-
-void writeCA(int ang) {
-  angle[4] = ang;
-  // int adj = 180 - ang;  // 뒷다리: 각도 반전
-  // servo_ca.write(reverseArm[2] ? 180-adj : adj);
-  servo_ca.write(reverseArm[2] ? 180-ang : ang);
-}
-void writeCF(int ang) { angle[5] = ang; servo_cf.write(reverseFoot[2] ? 180-ang : ang); }
-
-void writeDA(int ang) {
-  angle[6] = ang;
-  // int adj = 180 - ang;  // 뒷다리: 각도 반전
-  // servo_da.write(reverseArm[3] ? 180-adj : adj);
-  servo_da.write(reverseArm[3] ? 180-ang : ang);
-}
-void writeDF(int ang) { angle[7] = ang; servo_df.write(reverseFoot[3] ? 180-ang : ang); }
+/* 서보 제어 (물리각 직접 기록) -----------------------------------------------*/
+void writeAA(int ang) { angle[0] = ang; servo_aa.write(ang); }
+void writeAF(int ang) { angle[1] = ang; servo_af.write(ang); }
+void writeBA(int ang) { angle[2] = ang; servo_ba.write(ang); }
+void writeBF(int ang) { angle[3] = ang; servo_bf.write(ang); }
+void writeCA(int ang) { angle[4] = ang; servo_ca.write(ang); }
+void writeCF(int ang) { angle[5] = ang; servo_cf.write(ang); }
+void writeDA(int ang) { angle[6] = ang; servo_da.write(ang); }
+void writeDF(int ang) { angle[7] = ang; servo_df.write(ang); }
 
 void writeServo(int idx, int ang) {
   switch(idx) {
@@ -219,7 +209,7 @@ void actionTask(void* param) {
       case 2: ROUND(); break;
       case 3: flat_up(); break;
       case 4: flat_dw(); break;
-      case 5: flat_up(); flat_dw(); break;  // up-dn 교대
+      case 5: flat_up(); flat_dw(); break;
     }
   } while (loop_running);
 
@@ -229,7 +219,6 @@ void actionTask(void* param) {
   vTaskDelete(NULL);
 }
 
-// 1회 동작 시작 (기존 동작 강제 중단 후 한 번만 실행)
 void startOnceAction(int code) {
   if (ActionTask) {
     loop_running = false;
@@ -242,7 +231,6 @@ void startOnceAction(int code) {
   xTaskCreatePinnedToCore(actionTask, "Act", 4096, p, 1, &ActionTask, 0);
 }
 
-// 연속 동작 시작 (기존 동작 강제 중단 후 새 동작 시작)
 void startLoopAction(int code) {
   if (ActionTask) {
     loop_running = false;
@@ -255,7 +243,6 @@ void startLoopAction(int code) {
   xTaskCreatePinnedToCore(actionTask, "Act", 4096, p, 1, &ActionTask, 0);
 }
 
-// 연속 동작 정지
 void stopAction() {
   loop_running = false;
   if (ActionTask) {
@@ -276,8 +263,7 @@ void BLINK() {
 
 void stall() {
   BLINK();
-  // 현재 위치에서 초기자세(arm=Astl, foot=Fdw)까지 spd 속도로 동시 이동
-  int targets[8] = {Astl, Fdw, Astl, Fdw, Astl, Fdw, Astl, Fdw};
+  int targets[8] = {phyStl[0], Fdw, phyStl[1], Fdw, phyStl[2], Fdw, phyStl[3], Fdw};
   bool done = false;
   while (!done) {
     done = true;
@@ -290,7 +276,6 @@ void stall() {
 }
 
 void flat_dw() {
-  // 일어서기: Fdw → Fup+50
   writeAF(Fdw); writeBF(Fdw); writeCF(Fdw); writeDF(Fdw);
   delay(500);
   for (int i = Fdw; i <= Fup + 50; i++) {
@@ -301,7 +286,6 @@ void flat_dw() {
 }
 
 void flat_up() {
-  // 앉기: Fup → Fdw
   writeAF(Fup); writeBF(Fup); writeCF(Fup); writeDF(Fup);
   delay(500);
   for (int i = Fup; i >= Fdw; i--) {
@@ -311,18 +295,7 @@ void flat_up() {
   delay(500);
 }
 
-/* PCBWay 스타일 헬퍼 함수 ---------------------------------------------------*/
-// 몸 밀기: A,D → Abw→Afw / B,C → Afw→Abw (교차)
-void go_ahead() {
-  for (int i = Abw; i >= Afw; i--) {
-    writeAA(i); writeDA(i);
-    int y = Afw + Abw - i;
-    writeBA(y); writeCA(y);
-    delay(spd);
-  }
-}
-
-// Foot up/down (Fdw=40 서있는 자세, Fup=60 발 들림 → 증가 방향이 up)
+/* 발 up/down ----------------------------------------------------------------*/
 void Afoup() { for (int i = Fdw; i <= Fup; i++) { writeAF(i); delay(spd); } }
 void Afodw() { for (int i = Fup; i >= Fdw; i--) { writeAF(i); delay(spd); } }
 void Bfoup() { for (int i = Fdw; i <= Fup; i++) { writeBF(i); delay(spd); } }
@@ -332,40 +305,27 @@ void Cfodw() { for (int i = Fup; i >= Fdw; i--) { writeCF(i); delay(spd); } }
 void Dfoup() { for (int i = Fdw; i <= Fup; i++) { writeDF(i); delay(spd); } }
 void Dfodw() { for (int i = Fup; i >= Fdw; i--) { writeDF(i); delay(spd); } }
 
-// 현재 위치 → 목표 각도 이동 (idx: 0=aa,2=ba,4=ca,6=da)
+/* 팔 이동 -------------------------------------------------------------------*/
+// armTo: 현재 물리각 → 목표 물리각 (방향 자동 판별)
 void armTo(int idx, int target) {
   int cur = angle[idx];
   if (cur < target) { for (int i = cur; i <= target; i++) { writeServo(idx, i); delay(spd); } }
   else              { for (int i = cur; i >= target; i--) { writeServo(idx, i); delay(spd); } }
 }
 
-// Single arm movements (fw = 전방 Afw=45로 이동, bw = 후방 Abw=135로 이동)
-void armAfw() { for (int i = Abw; i >= Afw; i--) { writeAA(i); delay(spd); } }
-void armAbw() { for (int i = Afw; i <= Abw; i++) { writeAA(i); delay(spd); } }
-void armBfw() { for (int i = Abw; i >= Afw; i--) { writeBA(i); delay(spd); } }
-void armBbw() { for (int i = Afw; i <= Abw; i++) { writeBA(i); delay(spd); } }
-void armCfw() { for (int i = Abw; i >= Afw; i--) { writeCA(i); delay(spd); } }
-void armCbw() { for (int i = Afw; i <= Abw; i++) { writeCA(i); delay(spd); } }
-void armDfw() { for (int i = Abw; i >= Afw; i--) { writeDA(i); delay(spd); } }
-void armDbw() { for (int i = Afw; i <= Abw; i++) { writeDA(i); delay(spd); } }
+// contact(전방)/toeoff(후방) 이동
+void armAfw() { armTo(0, phyContact[0]); }  void armAbw() { armTo(0, phyToeoff(0)); }
+void armBfw() { armTo(2, phyContact[1]); }  void armBbw() { armTo(2, phyToeoff(1)); }
+void armCfw() { armTo(4, phyContact[2]); }  void armCbw() { armTo(4, phyToeoff(2)); }
+void armDfw() { armTo(6, phyContact[3]); }  void armDbw() { armTo(6, phyToeoff(3)); }
 
 void WALK() {
-  // 정적 크리프 보행: 한 다리씩 들어 전방에 놓고, 지지발로 뒤로 당겨 전진
-  // 순서: A→D→B→C (대각선 쌍)
-  // A,C: 전방=Afw(45°), 후방=Abw(135°)
-  // B,D: 전방=Abw(135°), 후방=Afw(45°)  ← B,D는 A,C 반대 방향
-
-  // A: 들고 → 전방(45°) 놓고 → 뒤로 당김(135°)
-  Afoup(); armTo(0, Afw); Afodw(); armTo(0, Abw);
-
-  // D: 들고 → 전방(135°) 놓고 → 뒤로 당김(45°)
-  Dfoup(); armTo(6, Abw); Dfodw(); armTo(6, Afw);
-
-  // B: 들고 → 전방(135°) 놓고 → 뒤로 당김(45°)
-  Bfoup(); armTo(2, Abw); Bfodw(); armTo(2, Afw);
-
-  // C: 들고 → 전방(45°) 놓고 → 뒤로 당김(135°)
-  Cfoup(); armTo(4, Afw); Cfodw(); armTo(4, Abw);
+  // 정적 크리프: A→D→B→C 순서
+  // 각 다리: swing(발들기) → contact → stand → toeoff
+  Afoup(); armTo(0, phyContact[0]); Afodw(); armTo(0, phyToeoff(0));
+  Dfoup(); armTo(6, phyContact[3]); Dfodw(); armTo(6, phyToeoff(3));
+  Bfoup(); armTo(2, phyContact[1]); Bfodw(); armTo(2, phyToeoff(1));
+  Cfoup(); armTo(4, phyContact[2]); Cfodw(); armTo(4, phyToeoff(2));
 }
 
 void ROUND() {
@@ -382,20 +342,17 @@ void setup() {
   delay(500);
   Serial.println("\n=== Spider Robot ===");
 
-  // 서보 연결
   for (int i = 0; i < 8; i++) servos[i]->attach(pins[i]);
   pinMode(ledPin, OUTPUT);
 
   stall();
   Serial.println("Servos ready");
 
-  // WiFi
   WiFi.mode(WIFI_AP);
   WiFi.softAP(ap_ssid, ap_password);
   Serial.printf("WiFi: %s / %s\n", ap_ssid, ap_password);
   Serial.printf("IP: %s\n", WiFi.softAPIP().toString().c_str());
 
-  // 웹서버
   server.on("/", []() {
     String page = index_html;
     page.replace("%TITLE%", ap_ssid);
@@ -417,19 +374,17 @@ void loop() {
     char c = (char)Serial.read();
 
     if (c == ' ') {
-      // 스페이스: 즉시 정지 (엔터 불필요)
       stopAction();
       Serial.println("[SPACE] 정지");
       serialBuf = "";
       continue;
     } else if (c == '\r') {
-      continue;  // CR 무시
+      continue;
     } else if (c != '\n') {
       serialBuf += c;
       continue;
     }
 
-    // '\n' 수신: 버퍼 처리
     serialBuf.trim();
     serialBuf.toLowerCase();
     if (serialBuf.length() == 0) { serialBuf = ""; continue; }
@@ -437,12 +392,11 @@ void loop() {
     serialBuf = "";
     Serial.printf("> %s\n", cmd.c_str());
 
-    // 개별 서보: aa90, bf60 등
+    // 개별 서보: aa90, bf60 등 (물리각 직접 입력)
     if (cmd.length() >= 3 && cmd[0] >= 'a' && cmd[0] <= 'd') {
-      int leg = cmd[0] - 'a';  // 0~3
-      char part = cmd[1];      // 'a' or 'f'
+      int leg = cmd[0] - 'a';
+      char part = cmd[1];
       int ang = cmd.substring(2).toInt();
-
       if (ang >= 0 && ang <= 180) {
         int idx = leg * 2 + (part == 'f' ? 1 : 0);
         writeServo(idx, ang);
@@ -476,29 +430,26 @@ void loop() {
     }
     else if (cmd == "sts") {
       Serial.println("\n[상태]");
-      Serial.println(" Leg | Arm(pin) | Foot(pin) | Arm° | Foot°");
-      Serial.println("-----|----------|-----------|------|------");
-      Serial.printf("  A  |  %2d(%s)  |  %2d(%s)   | %3d  | %3d\n",
-        pin_aa, reverseArm[0]?"R":"N", pin_af, reverseFoot[0]?"R":"N", angle[0], angle[1]);
-      Serial.printf("  B  |  %2d(%s)  |  %2d(%s)   | %3d  | %3d\n",
-        pin_ba, reverseArm[1]?"R":"N", pin_bf, reverseFoot[1]?"R":"N", angle[2], angle[3]);
-      Serial.printf("  C  |  %2d(%s)  |  %2d(%s)   | %3d  | %3d\n",
-        pin_ca, reverseArm[2]?"R":"N", pin_cf, reverseFoot[2]?"R":"N", angle[4], angle[5]);
-      Serial.printf("  D  |  %2d(%s)  |  %2d(%s)   | %3d  | %3d\n",
-        pin_da, reverseArm[3]?"R":"N", pin_df, reverseFoot[3]?"R":"N", angle[6], angle[7]);
+      Serial.println(" Leg | contact | toeoff | stl | Arm° | Foot°");
+      Serial.println("-----|---------|--------|-----|------|------");
+      for (int i = 0; i < 4; i++) {
+        char leg = 'A' + i;
+        Serial.printf("  %c  |   %3d   |  %3d   | %3d | %3d  | %3d\n",
+          leg, phyContact[i], phyToeoff(i), phyStl[i], angle[i*2], angle[i*2+1]);
+      }
       Serial.println();
     }
     else if (cmd == "help") {
       Serial.println("\n[명령어]");
-      Serial.println(" aa90, bf60  - 개별 서보 (다리a~d, arm/foot, 각도)");
+      Serial.println(" aa90, bf60  - 개별 서보 물리각 직접 설정");
       Serial.println(" off/on      - 서보 끄기/켜기");
       Serial.println(" spd1~10     - 속도 설정 (1=느림, 10=빠름)");
-      Serial.println(" stl/init        - 초기 자세 (정지)");
-      Serial.println(" stop(+엔터)/스페이스 - 연속 동작 즉시 정지");
-      Serial.println(" wlk/rnd         - 걷기/회전 (연속 반복)");
-      Serial.println(" up/dn           - 일어서기/앉기 (1회)");
-      Serial.println(" updn            - 일어서기-앉기 교대 (연속 반복)");
-      Serial.println(" sts(status)     - 상태 확인\n");
+      Serial.println(" stl/init    - 초기 자세");
+      Serial.println(" stop/스페이스 - 연속 동작 정지");
+      Serial.println(" wlk/rnd     - 걷기/회전 (연속)");
+      Serial.println(" up/dn       - 일어서기/앉기 (1회)");
+      Serial.println(" updn        - Up-Dn 교대 (연속)");
+      Serial.println(" sts         - 상태 확인\n");
     }
   }
   delay(1);
