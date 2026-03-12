@@ -3,3 +3,6 @@
 .vscode/c_cpp_properties.json
 .vscode/launch.json
 .vscode/ipch
+
+# 3D printing gcode (large, machine-specific)
+modeling/*.gcode
