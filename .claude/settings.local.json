@@ -1,0 +1,17 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(~/.platformio/penv/Scripts/pio run)",
+      "Bash(python3 -c \"import pybullet; print\\(pybullet.__version__\\)\")",
+      "Bash(pip install:*)",
+      "Bash(pip --version)",
+      "Bash(py -3.12 -c \"import sys; print\\(sys.version\\)\")",
+      "Bash(py -3.12 -m pip install pybullet)",
+      "Bash(py -3.12 -c \"import pybullet; print\\(''pybullet OK:'', pybullet.__version__\\)\")",
+      "Bash(\"/C/Program Files \\(x86\\)/Microsoft Visual Studio/Installer/vswhere.exe\" -latest -products \"*\" -requires Microsoft.VisualStudio.Component.VC.Tools.x86.x64 -property installationPath)",
+      "Bash(\"C:/Python313/python.exe\" -m pip install pybullet)",
+      "Bash(\"C:/Python313/python.exe\" -c \"import pybullet; import pybullet_data; print\\(''pybullet:'', pybullet.__version__\\); print\\(''data path:'', pybullet_data.getDataPath\\(\\)\\)\")",
+      "Bash(\"C:/Python313/python.exe\" -c \"import pybullet; import pybullet_data; print\\(''pybullet OK''\\); print\\(''data:'', pybullet_data.getDataPath\\(\\)\\)\")"
+    ]
+  }
+}

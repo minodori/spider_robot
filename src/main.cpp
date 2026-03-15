@@ -54,6 +54,7 @@ int ledPin = 23;
 /* 비동기 동작 ---------------------------------------------------------------*/
 volatile bool action_running = false;
 volatile bool loop_running = false;
+// TaskHandle_t ActionTask = NULL;
 TaskHandle_t ActionTask = NULL;
 
 /* 함수 선언 -----------------------------------------------------------------*/
@@ -348,7 +349,7 @@ void Dfodw() {
 
 // Basic movements
 void go_ahead() {
-  spd = 3;  // ~ 2-5
+  // spd = 3;  // ~ 2-5
   for (int i = Afw; i >= Abw; i--) {
     servo_aa.write(i);
     servo_da.write(i);
