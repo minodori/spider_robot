@@ -1,0 +1,439 @@
+#VRML_SIM R2025a utf8
+# license: Apache License 2.0
+# license url: http://www.apache.org/licenses/LICENSE-2.0
+# This is a proto file for Webots for the spider
+# Extracted from: D:\Projects\Robots\spider_robot_mert\simulation\spider.urdf
+
+PROTO spider [
+  field  SFVec3f     translation     0 0 0
+  field  SFRotation  rotation        0 0 1 0
+  field  SFString    name            "spider"  # Is `Robot.name`.
+  field  SFString    controller      "void"    # Is `Robot.controller`.
+  field  MFString    controllerArgs  []        # Is `Robot.controllerArgs`.
+  field  SFString    customData      ""        # Is `Robot.customData`.
+  field  SFBool      supervisor      FALSE     # Is `Robot.supervisor`.
+  field  SFBool      synchronization TRUE      # Is `Robot.synchronization`.
+  field  SFBool      selfCollision   FALSE     # Is `Robot.selfCollision`.
+]
+{
+  Robot {
+    translation IS translation
+    rotation IS rotation
+    controller IS controller
+    controllerArgs IS controllerArgs
+    customData IS customData
+    supervisor IS supervisor
+    synchronization IS synchronization
+    selfCollision IS selfCollision
+    children [
+      Shape {
+        appearance DEF bd PBRAppearance {
+          baseColor 0.250000 0.450000 0.850000
+          roughness 1.000000
+          metalness 0
+        }
+        geometry Box {
+           size 0.120000 0.120000 0.040000
+        }
+      }
+      HingeJoint {
+        jointParameters HingeJointParameters {
+          axis 0.000000 0.000000 1.000000
+          anchor -0.060000 0.060000 0.000000
+        }
+        device [
+          RotationalMotor {
+            name "arm_a"
+            maxVelocity 5.0
+            minPosition -1.5708
+            maxPosition 1.5708
+            maxTorque 10.0
+          }
+          PositionSensor {
+            name "arm_a_sensor"
+          }
+        ]
+        endPoint Solid {
+          translation -0.060000 0.060000 0.000000
+          rotation 0.000000 0.000000 1.000000 2.356200
+          children [
+            Pose {
+              translation 0.040000 0.000000 0.000000
+              rotation 0.000000 1.000000 0.000000 1.570800
+              children [
+                Shape {
+                  appearance DEF g PBRAppearance {
+                    baseColor 0.550000 0.550000 0.550000
+                    roughness 1.000000
+                    metalness 0
+                  }
+                  geometry Cylinder {
+                    radius 0.007
+                    height 0.08
+                  }
+                }
+              ]
+            }
+            HingeJoint {
+              jointParameters HingeJointParameters {
+                axis 0.000000 1.000000 0.000000
+                anchor 0.080000 0.000000 0.000000
+              }
+              device [
+                RotationalMotor {
+                  name "foot_a"
+                  maxVelocity 5.0
+                  minPosition -1.5708
+                  maxPosition 1.5708
+                  maxTorque 10.0
+                }
+                PositionSensor {
+                  name "foot_a_sensor"
+                }
+              ]
+              endPoint Solid {
+                translation 0.080000 0.000000 0.000000
+                children [
+                  Pose {
+                    translation 0.000000 0.000000 -0.050000
+                    children [
+                      Shape {
+                        appearance DEF ra PBRAppearance {
+                          baseColor 0.900000 0.200000 0.200000
+                          roughness 1.000000
+                          metalness 0
+                        }
+                        geometry Cylinder {
+                          radius 0.006
+                          height 0.1
+                        }
+                      }
+                    ]
+                  }
+                ]
+                name "foot_a"
+                physics Physics {
+                  density -1
+                  mass 0.030000
+                  centerOfMass [ 0.000000 0.000000 0.000000 ]
+                  inertiaMatrix [
+                    1.000000e-05 1.000000e-05 1.000000e-05
+                    0.000000e+00 0.000000e+00 0.000000e+00
+                  ]
+                }
+              }
+            }
+          ]
+          name "arm_a"
+          physics Physics {
+            density -1
+            mass 0.050000
+            centerOfMass [ 0.000000 0.000000 0.000000 ]
+            inertiaMatrix [
+              1.000000e-05 1.000000e-05 1.000000e-05
+              0.000000e+00 0.000000e+00 0.000000e+00
+            ]
+          }
+        }
+      }
+      HingeJoint {
+        jointParameters HingeJointParameters {
+          axis 0.000000 0.000000 1.000000
+          anchor 0.060000 0.060000 0.000000
+        }
+        device [
+          RotationalMotor {
+            name "arm_b"
+            maxVelocity 5.0
+            minPosition -1.5708
+            maxPosition 1.5708
+            maxTorque 10.0
+          }
+          PositionSensor {
+            name "arm_b_sensor"
+          }
+        ]
+        endPoint Solid {
+          translation 0.060000 0.060000 0.000000
+          rotation 0.000000 0.000000 1.000000 0.785400
+          children [
+            Pose {
+              translation 0.040000 0.000000 0.000000
+              rotation 0.000000 1.000000 0.000000 1.570800
+              children [
+                Shape {
+                  appearance USE g
+                  geometry Cylinder {
+                    radius 0.007
+                    height 0.08
+                  }
+                }
+              ]
+            }
+            HingeJoint {
+              jointParameters HingeJointParameters {
+                axis 0.000000 1.000000 0.000000
+                anchor 0.080000 0.000000 0.000000
+              }
+              device [
+                RotationalMotor {
+                  name "foot_b"
+                  maxVelocity 5.0
+                  minPosition -1.5708
+                  maxPosition 1.5708
+                  maxTorque 10.0
+                }
+                PositionSensor {
+                  name "foot_b_sensor"
+                }
+              ]
+              endPoint Solid {
+                translation 0.080000 0.000000 0.000000
+                children [
+                  Pose {
+                    translation 0.000000 0.000000 -0.050000
+                    children [
+                      Shape {
+                        appearance DEF rb PBRAppearance {
+                          baseColor 0.900000 0.500000 0.100000
+                          roughness 1.000000
+                          metalness 0
+                        }
+                        geometry Cylinder {
+                          radius 0.006
+                          height 0.1
+                        }
+                      }
+                    ]
+                  }
+                ]
+                name "foot_b"
+                physics Physics {
+                  density -1
+                  mass 0.030000
+                  centerOfMass [ 0.000000 0.000000 0.000000 ]
+                  inertiaMatrix [
+                    1.000000e-05 1.000000e-05 1.000000e-05
+                    0.000000e+00 0.000000e+00 0.000000e+00
+                  ]
+                }
+              }
+            }
+          ]
+          name "arm_b"
+          physics Physics {
+            density -1
+            mass 0.050000
+            centerOfMass [ 0.000000 0.000000 0.000000 ]
+            inertiaMatrix [
+              1.000000e-05 1.000000e-05 1.000000e-05
+              0.000000e+00 0.000000e+00 0.000000e+00
+            ]
+          }
+        }
+      }
+      HingeJoint {
+        jointParameters HingeJointParameters {
+          axis 0.000000 -0.000000 1.000000
+          anchor -0.060000 -0.060000 0.000000
+        }
+        device [
+          RotationalMotor {
+            name "arm_c"
+            maxVelocity 5.0
+            minPosition -1.5708
+            maxPosition 1.5708
+            maxTorque 10.0
+          }
+          PositionSensor {
+            name "arm_c_sensor"
+          }
+        ]
+        endPoint Solid {
+          translation -0.060000 -0.060000 0.000000
+          rotation 0.000000 0.000000 -1.000000 2.356200
+          children [
+            Pose {
+              translation 0.040000 0.000000 0.000000
+              rotation 0.000000 1.000000 0.000000 1.570800
+              children [
+                Shape {
+                  appearance USE g
+                  geometry Cylinder {
+                    radius 0.007
+                    height 0.08
+                  }
+                }
+              ]
+            }
+            HingeJoint {
+              jointParameters HingeJointParameters {
+                axis 0.000000 1.000000 0.000000
+                anchor 0.080000 0.000000 0.000000
+              }
+              device [
+                RotationalMotor {
+                  name "foot_c"
+                  maxVelocity 5.0
+                  minPosition -1.5708
+                  maxPosition 1.5708
+                  maxTorque 10.0
+                }
+                PositionSensor {
+                  name "foot_c_sensor"
+                }
+              ]
+              endPoint Solid {
+                translation 0.080000 0.000000 0.000000
+                children [
+                  Pose {
+                    translation 0.000000 0.000000 -0.050000
+                    children [
+                      Shape {
+                        appearance DEF rc PBRAppearance {
+                          baseColor 0.200000 0.800000 0.300000
+                          roughness 1.000000
+                          metalness 0
+                        }
+                        geometry Cylinder {
+                          radius 0.006
+                          height 0.1
+                        }
+                      }
+                    ]
+                  }
+                ]
+                name "foot_c"
+                physics Physics {
+                  density -1
+                  mass 0.030000
+                  centerOfMass [ 0.000000 0.000000 0.000000 ]
+                  inertiaMatrix [
+                    1.000000e-05 1.000000e-05 1.000000e-05
+                    0.000000e+00 0.000000e+00 0.000000e+00
+                  ]
+                }
+              }
+            }
+          ]
+          name "arm_c"
+          physics Physics {
+            density -1
+            mass 0.050000
+            centerOfMass [ 0.000000 0.000000 0.000000 ]
+            inertiaMatrix [
+              1.000000e-05 1.000000e-05 1.000000e-05
+              0.000000e+00 0.000000e+00 0.000000e+00
+            ]
+          }
+        }
+      }
+      HingeJoint {
+        jointParameters HingeJointParameters {
+          axis 0.000000 0.000000 1.000000
+          anchor 0.060000 -0.060000 0.000000
+        }
+        device [
+          RotationalMotor {
+            name "arm_d"
+            maxVelocity 5.0
+            minPosition -1.5708
+            maxPosition 1.5708
+            maxTorque 10.0
+          }
+          PositionSensor {
+            name "arm_d_sensor"
+          }
+        ]
+        endPoint Solid {
+          translation 0.060000 -0.060000 0.000000
+          rotation 0.000000 0.000000 -1.000000 0.785400
+          children [
+            Pose {
+              translation 0.040000 0.000000 0.000000
+              rotation 0.000000 1.000000 0.000000 1.570800
+              children [
+                Shape {
+                  appearance USE g
+                  geometry Cylinder {
+                    radius 0.007
+                    height 0.08
+                  }
+                }
+              ]
+            }
+            HingeJoint {
+              jointParameters HingeJointParameters {
+                axis 0.000000 1.000000 0.000000
+                anchor 0.080000 0.000000 0.000000
+              }
+              device [
+                RotationalMotor {
+                  name "foot_d"
+                  maxVelocity 5.0
+                  minPosition -1.5708
+                  maxPosition 1.5708
+                  maxTorque 10.0
+                }
+                PositionSensor {
+                  name "foot_d_sensor"
+                }
+              ]
+              endPoint Solid {
+                translation 0.080000 0.000000 0.000000
+                children [
+                  Pose {
+                    translation 0.000000 0.000000 -0.050000
+                    children [
+                      Shape {
+                        appearance DEF rd PBRAppearance {
+                          baseColor 0.300000 0.500000 0.900000
+                          roughness 1.000000
+                          metalness 0
+                        }
+                        geometry Cylinder {
+                          radius 0.006
+                          height 0.1
+                        }
+                      }
+                    ]
+                  }
+                ]
+                name "foot_d"
+                physics Physics {
+                  density -1
+                  mass 0.030000
+                  centerOfMass [ 0.000000 0.000000 0.000000 ]
+                  inertiaMatrix [
+                    1.000000e-05 1.000000e-05 1.000000e-05
+                    0.000000e+00 0.000000e+00 0.000000e+00
+                  ]
+                }
+              }
+            }
+          ]
+          name "arm_d"
+          physics Physics {
+            density -1
+            mass 0.050000
+            centerOfMass [ 0.000000 0.000000 0.000000 ]
+            inertiaMatrix [
+              1.000000e-05 1.000000e-05 1.000000e-05
+              0.000000e+00 0.000000e+00 0.000000e+00
+            ]
+          }
+        }
+      }
+    ]
+    name IS name
+    physics Physics {
+      density -1
+      mass 0.500000
+      centerOfMass [ 0.000000 0.000000 0.000000 ]
+      inertiaMatrix [
+        1.000000e-03 1.000000e-03 1.000000e-03
+        0.000000e+00 0.000000e+00 0.000000e+00
+      ]
+    }
+  }
+}

@@ -1,0 +1,7 @@
+#VRML_SIM R2025a utf8
+
+WorldInfo {
+}
+Viewpoint {
+  orientation 0 0 1 0.001249999999937696
+}

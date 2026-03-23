@@ -26,11 +26,17 @@ Servo servo_ba, servo_bf;  // Leg B (앞오)
 Servo servo_ca, servo_cf;  // Leg C (뒤왼)
 Servo servo_da, servo_df;  // Leg D (뒤오)
 
-// 핀 배치
-const int pin_aa = 26, pin_af = 12;  // Leg A
+// 핀 배치, ABCD
+// const int pin_aa = 26, pin_af = 12;  // Leg A
+// const int pin_ba = 32, pin_bf = 33;  // Leg B
+// const int pin_ca = 18, pin_cf = 2;   // Leg C
+// const int pin_da = 17, pin_df = 5;   // Leg D
+
+// 핀 배치, PCBWay
+const int pin_aa = 19, pin_af = 18;  // Leg A
 const int pin_ba = 32, pin_bf = 33;  // Leg B
-const int pin_ca = 18, pin_cf = 2;   // Leg C
-const int pin_da = 17, pin_df = 5;   // Leg D
+const int pin_ca = 4, pin_cf = 2;   // Leg C
+const int pin_da = 14, pin_df = 12;   // Leg D
 
 // 서보 배열
 Servo* servos[8] = {&servo_aa, &servo_af, &servo_ba, &servo_bf,
@@ -146,13 +152,11 @@ void handleAction() {
   if (cmd == "stop" || cmd == "init") { stopAction(); res = "정지"; }
   else if (cmd == "speed") { spd = 11 - server.arg("val").toInt(); res = "속도설정"; }
   else {
-    int code = 0;
-    if      (cmd == "walk")                                        { res = "전진(연속)"; code = 1; }
-    else if (cmd == "left" || cmd == "right" || cmd == "round")    { res = "회전(연속)"; code = 2; }
-    else if (cmd == "up")   { startOnceAction(3); res = "일어서기"; }
-    else if (cmd == "down") { startOnceAction(4); res = "앉기"; }
-    else if (cmd == "updn") { res = "Up-Dn(연속)"; code = 5; }
-    if (code) startLoopAction(code);
+    if      (cmd == "walk")                                      { startLoopAction(1); res = "전진"; }
+    else if (cmd == "left" || cmd == "right" || cmd == "round")  { startLoopAction(2); res = "회전"; }
+    else if (cmd == "up")                                        { startOnceAction(3); res = "일어서기"; }
+    else if (cmd == "down")                                      { startOnceAction(4); res = "앉기"; }
+    else if (cmd == "updn")                                      { startOnceAction(5); res = "Up-Dn"; }
   }
 
   server.send(200, "text/plain", res);
@@ -241,15 +245,19 @@ void stall() {
 // Grouped movements for walking and rotation
 void WALK() {
   go_ahead();
+
   Afoup();
   armAfw();
   Afodw();
+
   Cfoup();
   armCbw();
   Cfodw();
+
   Bfoup();
   armBbw();
   Bfodw();
+
   Dfoup();
   armDfw();
   Dfodw();
