@@ -72,3 +72,10 @@
 ### 시뮬레이션
 - `simulation/walk_sim.py` — PyBullet 3D 시각화
 - 실행: `C:\Python313\python.exe simulation\walk_sim.py`
+
+## Trot 보행 방식
+### Refererence 
+https://www.youtube.com/watch?v=tLrRlXxM5Yw&t=11s 3:14~3:34 사이 개의 걸음을 프레임 단위로
+분석해서 ./docs/trot.csv에 정리했다. 
+681~704 프레임이 한 주기이다. 앞 두다리와 뒷 두다리는 3/4 지연일때 지면에 닿는 세 다리가 삼각형을
+형성해서 중심을 잡는 구조라 설명되어 있다.
