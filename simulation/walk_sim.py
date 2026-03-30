@@ -26,10 +26,12 @@ import time
 import os
 
 # ─── Parameters from main.cpp ────────────────────────────────────────────────
-PHY_CONTACT = [100, 80, 30, 150]  # contact angle per leg [A=FL, B=FR, C=BL, D=BR]
-ARM_DIR = [1, -1, 1, -1]  # stance direction
-STRIDE = 50  # stance range (deg)
-PHY_STL = [90, 90, 90, 90]  # neutral arm angle (deg)
+# Angles in URDF world-frame degrees: 0=front(+x), CCW positive, right-hand rule
+MOUNT_YAW   = [ 45,  -45,  135, -135]  # leg mount yaw [A=FL, B=FR, C=BL, D=BR]
+PHY_CONTACT = [ 55,  -55,  125, -125]  # world-frame arm angle at foot contact
+PHY_STL     = MOUNT_YAW                # neutral (stall) = mount direction
+ARM_DIR     = [  1,   -1,    1,   -1]  # +1=CCW, -1=CW during stance
+STRIDE      = 50                        # angular stride (deg)
 FDW = 30  # foot down (standing)
 FUP = 60  # foot up (lifted)
 
@@ -70,9 +72,10 @@ def phy_toeoff(leg):
 
 
 # ─── Angle conversion ────────────────────────────────────────────────────────
-def arm_sim(leg, phy_deg):
-    """Physical servo angle -> PyBullet joint angle (rad)."""
-    return math.radians(phy_deg - PHY_STL[leg])
+def arm_sim(leg, world_deg):
+    """World-frame arm angle (deg) -> PyBullet joint angle (rad).
+    PyBullet revolute joint=0 when arm points along mount_yaw direction."""
+    return math.radians(world_deg - MOUNT_YAW[leg])
 
 
 def foot_sim(phy_deg):
@@ -83,7 +86,7 @@ def foot_sim(phy_deg):
 
 
 # ─── PyBullet setup ──────────────────────────────────────────────────────────
-PHYSICS_HZ = 240
+PHYSICS_HZ = 100
 
 p.connect(p.GUI)
 p.setAdditionalSearchPath(pybullet_data.getDataPath())
@@ -247,7 +250,7 @@ for i, n in enumerate("ABCD"):
     print(
         f"    Leg {n}: contact={PHY_CONTACT[i]:3d} deg  "
         f"toeoff={phy_toeoff(i):3d} deg  "
-        f"dir={'CW' if ARM_DIR[i]==1 else 'CCW'}"
+        f"dir={'CCW' if ARM_DIR[i]==1 else 'CW'}"
     )
 print()
 

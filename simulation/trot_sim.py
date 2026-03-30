@@ -24,12 +24,13 @@ import time
 import os
 
 # ── Servo / gait parameters ────────────────────────────────────────────────
-# Legs: 0=A(FL)  1=B(FR)  2=C(BL)  3=D(BR)
-PHY_CONTACT = [100,  80,  30, 150]   # arm angle at ground contact (deg)
-ARM_DIR     = [  1,  -1,   1,  -1]   # +1=CW, -1=CCW during stance
-STRIDE      = 50                      # contact → toeoff range (deg)
-PHY_STL     = [ 90,  90,  90,  90]   # neutral arm angle (deg)
-FDW, FUP    = 30, 60                  # foot: down / lifted
+# Angles in URDF world-frame degrees: 0=front(+x), CCW positive, right-hand rule
+MOUNT_YAW   = [ 45,  -45,  135, -135]  # leg mount yaw [A=FL, B=FR, C=BL, D=BR]
+PHY_CONTACT = [ 55,  -55,  125, -125]  # world-frame arm angle at foot contact
+PHY_STL     = MOUNT_YAW                # neutral (stall) = mount direction
+ARM_DIR     = [  1,  -1,   1,  -1]     # +1=CCW, -1=CW during stance
+STRIDE      = 50                        # contact → toeoff range (deg)
+FDW, FUP    = 30, 60                    # foot: down / lifted
 
 def phy_toeoff(leg):
     return PHY_CONTACT[leg] + ARM_DIR[leg] * STRIDE
@@ -48,9 +49,9 @@ GAIT_STEP_SEC    = 0.08          # 24 steps × 0.08 s ≈ 1.9 s per cycle (defau
 PHYSICS_PER_STEP = int(PHYSICS_HZ * GAIT_STEP_SEC)   # physics steps per gait step
 
 # ── Angle helpers ──────────────────────────────────────────────────────────
-def arm_sim(leg, phy_deg):
-    """Physical degrees → PyBullet joint angle (rad)."""
-    return math.radians(phy_deg - PHY_STL[leg])
+def arm_sim(leg, world_deg):
+    """World-frame arm angle (deg) → PyBullet joint angle (rad)."""
+    return math.radians(world_deg - MOUNT_YAW[leg])
 
 def foot_sim(phy_deg):
     """Physical degrees → PyBullet joint angle (rad). Negative = foot lifts."""
