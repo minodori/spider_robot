@@ -1,0 +1,149 @@
+"""Spider robot URDF definition shared by walk_sim.py and trot_sim.py."""
+
+URDF_STR = """<?xml version="1.0"?>
+<robot name="spider">
+
+  <link name="body">
+    <visual>
+      <geometry><box size="0.12 0.12 0.04"/></geometry>
+      <material name="bd"><color rgba="0.25 0.45 0.85 1"/></material>
+    </visual>
+    <collision>
+      <geometry><box size="0.12 0.12 0.04"/></geometry>
+    </collision>
+    <inertial>
+      <mass value="0.5"/>
+      <inertia ixx="1e-3" ixy="0" ixz="0" iyy="1e-3" iyz="0" izz="1e-3"/>
+    </inertial>
+  </link>
+
+  <!-- Leg A : front-left (-0.06, +0.06), yaw=135 deg -->
+  <joint name="arm_a" type="revolute">
+    <parent link="body"/><child link="arm_a"/>
+    <origin xyz="-0.06 0.06 0" rpy="0 0 2.3562"/>
+    <axis xyz="0 0 1"/>
+    <limit lower="-1.5708" upper="1.5708" effort="10" velocity="5"/>
+  </joint>
+  <link name="arm_a">
+    <visual><origin xyz="0.04 0 0" rpy="0 1.5708 0"/>
+      <geometry><cylinder radius="0.007" length="0.08"/></geometry>
+      <material name="g"><color rgba="0.55 0.55 0.55 1"/></material></visual>
+    <collision><origin xyz="0.04 0 0" rpy="0 1.5708 0"/>
+      <geometry><cylinder radius="0.007" length="0.08"/></geometry></collision>
+    <inertial><mass value="0.05"/>
+      <inertia ixx="1e-5" ixy="0" ixz="0" iyy="1e-5" iyz="0" izz="1e-5"/></inertial>
+  </link>
+  <joint name="foot_a" type="revolute">
+    <parent link="arm_a"/><child link="foot_a"/>
+    <origin xyz="0.08 0 0" rpy="0 0 0"/>
+    <axis xyz="0 1 0"/>
+    <limit lower="-1.5708" upper="1.5708" effort="10" velocity="5"/>
+  </joint>
+  <link name="foot_a">
+    <visual><origin xyz="0 0 -0.05"/>
+      <geometry><cylinder radius="0.006" length="0.10"/></geometry>
+      <material name="ra"><color rgba="0.9 0.2 0.2 1"/></material></visual>
+    <collision><origin xyz="0 0 -0.05"/>
+      <geometry><cylinder radius="0.006" length="0.10"/></geometry></collision>
+    <inertial><mass value="0.03"/>
+      <inertia ixx="1e-5" ixy="0" ixz="0" iyy="1e-5" iyz="0" izz="1e-5"/></inertial>
+  </link>
+
+  <!-- Leg B : front-right (+0.06, +0.06), yaw=45 deg -->
+  <joint name="arm_b" type="revolute">
+    <parent link="body"/><child link="arm_b"/>
+    <origin xyz="0.06 0.06 0" rpy="0 0 0.7854"/>
+    <axis xyz="0 0 1"/>
+    <limit lower="-1.5708" upper="1.5708" effort="10" velocity="5"/>
+  </joint>
+  <link name="arm_b">
+    <visual><origin xyz="0.04 0 0" rpy="0 1.5708 0"/>
+      <geometry><cylinder radius="0.007" length="0.08"/></geometry>
+      <material name="g"/></visual>
+    <collision><origin xyz="0.04 0 0" rpy="0 1.5708 0"/>
+      <geometry><cylinder radius="0.007" length="0.08"/></geometry></collision>
+    <inertial><mass value="0.05"/>
+      <inertia ixx="1e-5" ixy="0" ixz="0" iyy="1e-5" iyz="0" izz="1e-5"/></inertial>
+  </link>
+  <joint name="foot_b" type="revolute">
+    <parent link="arm_b"/><child link="foot_b"/>
+    <origin xyz="0.08 0 0" rpy="0 0 0"/>
+    <axis xyz="0 1 0"/>
+    <limit lower="-1.5708" upper="1.5708" effort="10" velocity="5"/>
+  </joint>
+  <link name="foot_b">
+    <visual><origin xyz="0 0 -0.05"/>
+      <geometry><cylinder radius="0.006" length="0.10"/></geometry>
+      <material name="rb"><color rgba="0.9 0.5 0.1 1"/></material></visual>
+    <collision><origin xyz="0 0 -0.05"/>
+      <geometry><cylinder radius="0.006" length="0.10"/></geometry></collision>
+    <inertial><mass value="0.03"/>
+      <inertia ixx="1e-5" ixy="0" ixz="0" iyy="1e-5" iyz="0" izz="1e-5"/></inertial>
+  </link>
+
+  <!-- Leg C : rear-left (-0.06, -0.06), yaw=-135 deg -->
+  <joint name="arm_c" type="revolute">
+    <parent link="body"/><child link="arm_c"/>
+    <origin xyz="-0.06 -0.06 0" rpy="0 0 -2.3562"/>
+    <axis xyz="0 0 1"/>
+    <limit lower="-1.5708" upper="1.5708" effort="10" velocity="5"/>
+  </joint>
+  <link name="arm_c">
+    <visual><origin xyz="0.04 0 0" rpy="0 1.5708 0"/>
+      <geometry><cylinder radius="0.007" length="0.08"/></geometry>
+      <material name="g"/></visual>
+    <collision><origin xyz="0.04 0 0" rpy="0 1.5708 0"/>
+      <geometry><cylinder radius="0.007" length="0.08"/></geometry></collision>
+    <inertial><mass value="0.05"/>
+      <inertia ixx="1e-5" ixy="0" ixz="0" iyy="1e-5" iyz="0" izz="1e-5"/></inertial>
+  </link>
+  <joint name="foot_c" type="revolute">
+    <parent link="arm_c"/><child link="foot_c"/>
+    <origin xyz="0.08 0 0" rpy="0 0 0"/>
+    <axis xyz="0 1 0"/>
+    <limit lower="-1.5708" upper="1.5708" effort="10" velocity="5"/>
+  </joint>
+  <link name="foot_c">
+    <visual><origin xyz="0 0 -0.05"/>
+      <geometry><cylinder radius="0.006" length="0.10"/></geometry>
+      <material name="rc"><color rgba="0.2 0.8 0.3 1"/></material></visual>
+    <collision><origin xyz="0 0 -0.05"/>
+      <geometry><cylinder radius="0.006" length="0.10"/></geometry></collision>
+    <inertial><mass value="0.03"/>
+      <inertia ixx="1e-5" ixy="0" ixz="0" iyy="1e-5" iyz="0" izz="1e-5"/></inertial>
+  </link>
+
+  <!-- Leg D : rear-right (+0.06, -0.06), yaw=-45 deg -->
+  <joint name="arm_d" type="revolute">
+    <parent link="body"/><child link="arm_d"/>
+    <origin xyz="0.06 -0.06 0" rpy="0 0 -0.7854"/>
+    <axis xyz="0 0 1"/>
+    <limit lower="-1.5708" upper="1.5708" effort="10" velocity="5"/>
+  </joint>
+  <link name="arm_d">
+    <visual><origin xyz="0.04 0 0" rpy="0 1.5708 0"/>
+      <geometry><cylinder radius="0.007" length="0.08"/></geometry>
+      <material name="g"/></visual>
+    <collision><origin xyz="0.04 0 0" rpy="0 1.5708 0"/>
+      <geometry><cylinder radius="0.007" length="0.08"/></geometry></collision>
+    <inertial><mass value="0.05"/>
+      <inertia ixx="1e-5" ixy="0" ixz="0" iyy="1e-5" iyz="0" izz="1e-5"/></inertial>
+  </link>
+  <joint name="foot_d" type="revolute">
+    <parent link="arm_d"/><child link="foot_d"/>
+    <origin xyz="0.08 0 0" rpy="0 0 0"/>
+    <axis xyz="0 1 0"/>
+    <limit lower="-1.5708" upper="1.5708" effort="10" velocity="5"/>
+  </joint>
+  <link name="foot_d">
+    <visual><origin xyz="0 0 -0.05"/>
+      <geometry><cylinder radius="0.006" length="0.10"/></geometry>
+      <material name="rd"><color rgba="0.3 0.5 0.9 1"/></material></visual>
+    <collision><origin xyz="0 0 -0.05"/>
+      <geometry><cylinder radius="0.006" length="0.10"/></geometry></collision>
+    <inertial><mass value="0.03"/>
+      <inertia ixx="1e-5" ixy="0" ixz="0" iyy="1e-5" iyz="0" izz="1e-5"/></inertial>
+  </link>
+
+</robot>
+"""
