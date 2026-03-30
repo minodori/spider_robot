@@ -22,8 +22,6 @@ import pybullet_data
 import math
 import time
 import os
-import tempfile
-from spider_urdf import URDF_STR
 
 # ── Servo / gait parameters ────────────────────────────────────────────────
 # Legs: 0=A(FL)  1=B(FR)  2=C(BL)  3=D(BR)
@@ -100,13 +98,8 @@ p.configureDebugVisualizer(p.COV_ENABLE_SHADOWS, 1)
 plane = p.loadURDF("plane.urdf")
 p.changeDynamics(plane, -1, lateralFriction=1.5, spinningFriction=0.05, rollingFriction=0.05)
 
-tmp = tempfile.NamedTemporaryFile(mode='w', suffix='.urdf', delete=False)
-tmp.write(URDF_STR)
-tmp.close()
-try:
-    robot = p.loadURDF(tmp.name, [0, 0, 0.15], p.getQuaternionFromEuler([0, 0, 0]))
-finally:
-    os.unlink(tmp.name)
+_URDF_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "spider.urdf")
+robot = p.loadURDF(_URDF_PATH, [0, 0, 0.15], p.getQuaternionFromEuler([0, 0, 0]))
 
 # Increase foot friction and add joint damping for stability
 for i in range(p.getNumJoints(robot)):

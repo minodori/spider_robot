@@ -1,6 +1,4 @@
-"""Spider robot URDF definition shared by walk_sim.py and trot_sim.py."""
-
-URDF_STR = """<?xml version="1.0"?>
+<?xml version="1.0"?>
 <robot name="spider">
 
   <link name="body">
@@ -146,4 +144,3 @@ URDF_STR = """<?xml version="1.0"?>
   </link>
 
 </robot>
-"""

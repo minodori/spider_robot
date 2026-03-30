@@ -24,8 +24,6 @@ import pybullet_data
 import math
 import time
 import os
-import tempfile
-from spider_urdf import URDF_STR
 
 # ─── Parameters from main.cpp ────────────────────────────────────────────────
 PHY_CONTACT = [100, 80, 30, 150]  # contact angle per leg [A, B, C, D]
@@ -101,13 +99,8 @@ p.changeDynamics(
     plane, -1, lateralFriction=3.0, spinningFriction=0.2, rollingFriction=0.2
 )
 
-tmp = tempfile.NamedTemporaryFile(mode="w", suffix=".urdf", delete=False)
-tmp.write(URDF_STR)
-tmp.close()
-try:
-    robot = p.loadURDF(tmp.name, [0, 0, 0.15], p.getQuaternionFromEuler([0, 0, 0]))
-finally:
-    os.unlink(tmp.name)
+_URDF_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "spider.urdf")
+robot = p.loadURDF(_URDF_PATH, [0, 0, 0.15], p.getQuaternionFromEuler([0, 0, 0]))
 
 # Body damping: resist tipping when legs push asymmetrically
 p.changeDynamics(robot, -1, linearDamping=0.4, angularDamping=0.9)
