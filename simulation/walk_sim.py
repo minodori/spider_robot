@@ -26,8 +26,8 @@ import time
 import os
 
 # ─── Parameters from main.cpp ────────────────────────────────────────────────
-PHY_CONTACT = [80, 150, 100, 30]  # contact angle per leg [A=FR, B=BR, C=FL, D=BL]
-ARM_DIR = [-1, -1, 1, 1]  # stance direction
+PHY_CONTACT = [100, 80, 30, 150]  # contact angle per leg [A=FL, B=FR, C=BL, D=BR]
+ARM_DIR = [1, -1, 1, -1]  # stance direction
 STRIDE = 50  # stance range (deg)
 PHY_STL = [90, 90, 90, 90]  # neutral arm angle (deg)
 FDW = 30  # foot down (standing)
@@ -35,11 +35,11 @@ FUP = 60  # foot up (lifted)
 
 # ─── Crawl gait state machine (Crawl V1.0) ───────────────────────────────────
 # All 4 legs run simultaneously: 1 swings, 3 push back.
-# Order: C(FL,0) → B(BR,25) → A(FR,50) → D(BL,75)  within 100-step cycle.
+# Order: A(FL,0) → D(BR,25) → B(FR,50) → C(BL,75)  within 100-step cycle.
 CRAWL_CYCLE = 100  # steps per full gait cycle
 SWING_STEPS = 25  # steps each leg is airborne (= 1/4 cycle)
-# Step within cycle when each leg starts its swing [A=FR, B=BR, C=FL, D=BL]
-SWING_START = [50, 25, 0, 75]
+# Step within cycle when each leg starts its swing [A=FL, B=FR, C=BL, D=BR]
+SWING_START = [0, 50, 75, 25]
 
 
 def lerp(a, b, t):
@@ -227,7 +227,7 @@ def stall():
     p.resetBaseVelocity(robot, [0, 0, 0], [0, 0, 0])
 
 
-LEG_NAMES = ["A(FR)", "B(BR)", "C(FL)", "D(BL)"]
+LEG_NAMES = ["A(FL)", "B(FR)", "C(BL)", "D(BR)"]
 # Which leg is swinging at each step (for status display)
 _SWING_LEG_AT = {}
 for _leg in range(4):

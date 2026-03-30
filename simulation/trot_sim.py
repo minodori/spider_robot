@@ -24,9 +24,9 @@ import time
 import os
 
 # ── Servo / gait parameters ────────────────────────────────────────────────
-# Legs: 0=A(FR)  1=B(BR)  2=C(FL)  3=D(BL)   ← URDF joint order
-PHY_CONTACT = [ 80, 150, 100,  30]   # arm angle at ground contact (deg)
-ARM_DIR     = [ -1,  -1,   1,   1]   # +1=CW, -1=CCW during stance
+# Legs: 0=A(FL)  1=B(FR)  2=C(BL)  3=D(BR)
+PHY_CONTACT = [100,  80,  30, 150]   # arm angle at ground contact (deg)
+ARM_DIR     = [  1,  -1,   1,  -1]   # +1=CW, -1=CCW during stance
 STRIDE      = 50                      # contact → toeoff range (deg)
 PHY_STL     = [ 90,  90,  90,  90]   # neutral arm angle (deg)
 FDW, FUP    = 30, 60                  # foot: down / lifted
@@ -37,10 +37,10 @@ def phy_toeoff(leg):
 # ── Trot.csv timing (0-indexed, within 24-frame cycle) ─────────────────────
 # Derived from docs/trot.csv (frames 681-704, FL starts at Place-Down)
 CYCLE_LEN   = 24
-SWING_START = [ 4, 23, 15, 10]   # step when leg starts lifting  [A=FR, B=BR, C=FL, D=BL]
-SWING_LEN   = [ 7,  6,  9,  6]   # steps airborne
+SWING_START = [15,  4, 10, 23]   # step when leg starts lifting  [A=FL, B=FR, C=BL, D=BR]
+SWING_LEN   = [ 9,  7,  6,  6]   # steps airborne
 
-LEG_NAMES   = ['A(FR)', 'B(BR)', 'C(FL)', 'D(BL)']
+LEG_NAMES   = ['A(FL)', 'B(FR)', 'C(BL)', 'D(BR)']
 
 # ── Physics timing ─────────────────────────────────────────────────────────
 PHYSICS_HZ       = 240
