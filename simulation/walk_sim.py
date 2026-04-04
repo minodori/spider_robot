@@ -27,11 +27,13 @@ import os
 
 # ─── Parameters from main.cpp ────────────────────────────────────────────────
 # Angles in URDF world-frame degrees: 0=front(+x), CCW positive, right-hand rule
-MOUNT_YAW   = [ 45,  -45,  135, -135]  # leg mount yaw [A=FL, B=FR, C=BL, D=BR]
-PHY_CONTACT = [ 55,  -55,  125, -125]  # world-frame arm angle at foot contact
-PHY_STL     = MOUNT_YAW                # neutral (stall) = mount direction
-ARM_DIR     = [  1,   -1,    1,   -1]  # +1=CCW, -1=CW during stance
-STRIDE      = 50                        # angular stride (deg)
+MOUNT_YAW = [45, -45, 135, -135]  # leg mount yaw [A=FL, B=FR, C=BL, D=BR]
+PHY_CONTACT = [55, -55, 75, -75]  # world-frame contact angle
+#   FL: mid= 80°, sin=0.98  FR: mid=-80°, sin=0.98
+#   BL: mid=100°, sin=0.98  BR: mid=-100°, sin=0.98  → 전진 기여 균등
+PHY_STL = MOUNT_YAW  # neutral (stall) = mount direction
+ARM_DIR = [1, -1, 1, -1]  # +1=CCW, -1=CW during stance
+STRIDE = 50  # angular stride (deg)
 FDW = 30  # foot down (standing)
 FUP = 60  # foot up (lifted)
 
@@ -86,7 +88,7 @@ def foot_sim(phy_deg):
 
 
 # ─── PyBullet setup ──────────────────────────────────────────────────────────
-PHYSICS_HZ = 100
+PHYSICS_HZ = 240
 
 p.connect(p.GUI)
 p.setAdditionalSearchPath(pybullet_data.getDataPath())
@@ -130,6 +132,7 @@ for i in range(p.getNumJoints(robot)):
 
 # ─── Debug UI ────────────────────────────────────────────────────────────────
 speed_id = p.addUserDebugParameter("Speed (1=slow, 10=fast)", 1, 10, 1)
+step_btn_id = p.addUserDebugParameter("[S] Step (drag right = +1 frame)", 0, 9999, 0)
 
 # Status text (top-left)
 status_id = p.addUserDebugText("Initializing...", [0, 0, 0.22], [1, 1, 1], 1.2)
@@ -137,11 +140,13 @@ status_id = p.addUserDebugText("Initializing...", [0, 0, 0.22], [1, 1, 1], 1.2)
 # ─── State ───────────────────────────────────────────────────────────────────
 cur_arm = list(PHY_STL)
 cur_foot = [FDW, FDW, FDW, FDW]
-paused = False
+paused = True   # start paused so user can step from the very first frame
+prev_step_btn = 0
 
 KEY_SPACE = ord(" ")
 KEY_R = ord("r")
 KEY_Q = ord("q")
+KEY_S = ord("s")
 KEY_ESC = 27
 
 
@@ -188,20 +193,16 @@ def update_camera():
 
 
 def sim_step():
-    """One simulation step. Returns False if quit was requested."""
-    global paused
+    """One simulation step. Returns (continue, do_gait_step)."""
+    global paused, prev_step_btn
 
     keys = p.getKeyboardEvents()
 
     # Toggle pause
     if KEY_SPACE in keys and keys[KEY_SPACE] & p.KEY_WAS_TRIGGERED:
         paused = not paused
-        label = "PAUSED  [Space]=resume  [R]=restart  [Q]=quit"
         if paused:
-            print("[Space] Paused")
-            p.addUserDebugText(
-                label, [0, 0, 0.22], [1, 0.4, 0.4], 1.2, replaceItemUniqueId=status_id
-            )
+            print("[Space] Paused  — [S]=step  [Space]=resume")
         else:
             print("[Space] Resumed")
 
@@ -209,13 +210,25 @@ def sim_step():
     if (KEY_Q in keys and keys[KEY_Q] & p.KEY_WAS_TRIGGERED) or (
         KEY_ESC in keys and keys[KEY_ESC] & p.KEY_WAS_TRIGGERED
     ):
-        return False
+        return False, False
 
     if paused:
+        # S key: advance exactly one gait frame
+        s_key = KEY_S in keys and keys[KEY_S] & p.KEY_WAS_TRIGGERED
+        # Slider button: each integer increment = one gait frame
+        btn_val = int(p.readUserDebugParameter(step_btn_id))
+        slider_step = btn_val > prev_step_btn
+        if slider_step:
+            prev_step_btn = btn_val
+
+        if s_key or slider_step:
+            return True, True  # advance one gait step
+
         p.stepSimulation()
         time.sleep(0.016)
+        return True, False
 
-    return True
+    return True, True
 
 
 def stall():
@@ -243,7 +256,7 @@ print("=" * 52)
 print("  Spider Robot Walk Simulation")
 print("=" * 52)
 print("  Camera : left-drag=rotate  right-drag=pan  scroll=zoom")
-print("  Keys   : [Space]=pause/resume  [R]=restart  [Q]=quit")
+print("  Keys   : [Space]=pause/resume  [S]=single-step  [R]=restart  [Q]=quit")
 print()
 print("  Gait parameters:")
 for i, n in enumerate("ABCD"):
@@ -278,35 +291,45 @@ try:
             prev_swing = -1
             continue
 
-        if not sim_step():
+        ok, do_step = sim_step()
+        if not ok:
             break
 
-        if paused:
+        if not do_step:
             continue
 
         # Apply coordinated crawl targets for all 4 legs
         apply_joints(step=crawl_step)
-        for _ in range(10):
-            p.stepSimulation()
-        time.sleep(get_step_delay())
 
-        # Status: announce when a new swing starts
+        if paused:
+            # Single-step: run a few physics steps so the joints settle visually
+            for _ in range(30):
+                p.stepSimulation()
+        else:
+            for _ in range(10):
+                p.stepSimulation()
+            time.sleep(get_step_delay())
+
+        # Status: show current gait step and which leg is swinging
         sw = _SWING_LEG_AT.get(crawl_step, -1)
+        swing_txt = f"swing={LEG_NAMES[sw]}" if sw != -1 else "stance only"
+        label = (
+            f"step={crawl_step:3d}  cycle={cycle}  {swing_txt}"
+        )
+        if paused:
+            label = "[PAUSED] " + label + "  [S]=next  [Space]=run"
         if sw != prev_swing and sw != -1:
-            label = (
-                f"Leg {LEG_NAMES[sw]} swinging  "
-                f"contact={PHY_CONTACT[sw]}  toeoff={phy_toeoff(sw)}"
-            )
-            print(f"  {label}")
-            pos, _ = p.getBasePositionAndOrientation(robot)
-            p.addUserDebugText(
-                label,
-                [pos[0], pos[1], 0.22],
-                [0.3, 1.0, 0.4],
-                1.2,
-                replaceItemUniqueId=status_id,
-            )
+            print(f"  step={crawl_step}: Leg {LEG_NAMES[sw]} swinging  "
+                  f"contact={PHY_CONTACT[sw]}  toeoff={phy_toeoff(sw)}")
             prev_swing = sw
+        pos, _ = p.getBasePositionAndOrientation(robot)
+        p.addUserDebugText(
+            label,
+            [pos[0], pos[1], 0.22],
+            [1.0, 0.8, 0.2] if paused else [0.3, 1.0, 0.4],
+            1.2,
+            replaceItemUniqueId=status_id,
+        )
 
         crawl_step = (crawl_step + 1) % CRAWL_CYCLE
         if crawl_step == 0:

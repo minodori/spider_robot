@@ -1,0 +1,9 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(C:/Python313/python.exe -c \"import ast, sys; ast.parse\\(open\\(''simulation/trot_sim.py''\\).read\\(\\)\\); ast.parse\\(open\\(''simulation/walk_sim.py''\\).read\\(\\)\\); print\\(''Syntax OK''\\)\")",
+      "Bash(C:/Python313/python.exe -c \":*)",
+      "Bash(git push:*)"
+    ]
+  }
+}

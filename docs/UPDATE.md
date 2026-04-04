@@ -1,6 +1,59 @@
 # Update
 
- 
+## 2026.04.05
+
+### walk_sim2.py — 논리각(Logical Angle) 좌표계 기반 시뮬레이션 재구현
+
+#### 배경
+- 기존 walk_sim.py는 물리각(서보각) 기준으로 파라미터를 관리하여 PyBullet과 firmware 간 좌표계 불일치 문제 존재
+- 논리각(월드각) 기준으로 통일하여 시뮬레이션과 firmware 일관성 확보
+
+#### 좌표계 정의 확정
+- 논리각: 0°=전방, 90°=수평, 180°=후방, CCW=양수
+- 물리각: 서보 하드웨어 각도, toServo() 변환 함수로만 접근
+- ARM 변환식: A(+45), B(+135), C(-45), D(+225)
+- FOOT 변환식: phy = 210 - logical
+
+#### 수평선 기준 정립
+- 앞다리(A/B) 수평 = 물리각 135°/45°
+- 뒷다리(C/D) 수평 = 물리각 45°/135°
+- logContact = 75° (수평 전방 15°), logToeoff = 125° (수평 후방 35°)
+- logStl: A/B = 45°, C/D = 135°
+
+#### ARM_LIMIT / FOOT_LIMIT 추가
+- ARM_LIMIT = 15°: 기구 안전을 위해 논리각 범위 양 끝단 여유각
+- FOOT_LIMIT = 10°: foot 서보 한계 여유각
+- 시뮬레이션에는 offset 미적용 (offset은 실제 하드웨어 공차 보정용)
+
+#### 주요 수정 이력
+
+| 항목 | 내용 | 결과 |
+|------|------|------|
+| 파라미터 교체 | PHY_CONTACT/MOUNT_YAW/ARM_DIR → LOG_CONTACT/LOG_STL/LOG_TOEOFF | 논리각 통일 |
+| to_servo_arm() 추가 | 논리각→물리각 변환 함수 | A:+45, B:+135, C:-45, D:+225 |
+| to_servo_foot() 추가 | phy = 210 - logical | foot 변환 통일 |
+| arm_sim() 수정 | logical - MOUNT_YAW → PyBullet rad | URDF joint 방향 일치 |
+| foot_sim() 부호 | +/-math.radians(phy-90) 반복 시도 | URDF axis 방향 확인 중 |
+| stall() 개선 | p.createConstraint()로 초기화 중 몸체 고정 | 중력에 의한 쓰러짐 방지 |
+| foot joint force | 60 → 200 | 중력 버팀 강화 |
+| 키보드 이벤트 | 메인루프 중복 getKeyboardEvents() 제거 | Space키 정상 작동 |
+| update_camera() | 수동 뷰 각도 유지 (getDebugVisualizerCamera 활용) | 사용자 뷰 유지 |
+| angularDamping | 0.9 → 5.0 | 회전 억제 (임시) |
+
+#### 현재 상태 및 미해결 문제
+- 초기 stall 자세: 정상 (몸체 수평, 다리 대각선 방향)
+- Space/S키: 정상 작동
+- 보행 중 몸체 회전 문제: foot_sim() 부호 및 LOG_FDW 값 튜닝 진행 중
+- foot joint 방향: URDF axis xyz="0 1 0" 기준 양수/음수 방향 확인 필요
+- CoG pre-shift 미구현: 구현 예정
+
+#### 다음 작업
+- foot_sim() 방향 및 LOG_FDW/LOG_FUP 값 확정
+- CoG pre-shift 구현
+- main.cpp 논리각 기반으로 동일하게 수정
+
+---
+
 ## 2026.03.08
 
 ### 동작 연속 반복 기능 추가 (웹 + 시리얼)
@@ -34,6 +87,5 @@
 
 ## 2026.03.04
 ### Walk
-- AA,BA,CA,DA만 움직이고 AF~DF는 움직이지 않는다. 
-- AA~DA는 동시에 반시계 방향으로 45도- 시계방향 90도- AA 반시계 방향 90도 - CA 반시계 방향 90도 - CA 시계 방향 90도 - BA 반시계 방향 90도 - BA 시계 방향 90도 - DA 반시계 방향 90도 
-
+- AA,BA,CA,DA만 움직이고 AF~DF는 움직이지 않는다.
+- AA~DA는 동시에 반시계 방향으로 45도- 시계방향 90도- AA 반시계 방향 90도 - CA 반시계 방향 90도 - CA 시계 방향 90도 - BA 반시계 방향 90도 - BA 시계 방향 90도 - DA 반시계 방향 90도
