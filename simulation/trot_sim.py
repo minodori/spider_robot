@@ -117,7 +117,7 @@ ARM  = [jmap['arm_a'],  jmap['arm_b'],  jmap['arm_c'],  jmap['arm_d']]
 FOOT = [jmap['foot_a'], jmap['foot_b'], jmap['foot_c'], jmap['foot_d']]
 
 # ── Debug UI ───────────────────────────────────────────────────────────────
-speed_id  = p.addUserDebugParameter("Speed (1=slow, 10=fast)", 1, 10, 5)
+speed_id  = p.addUserDebugParameter("Speed (0.1=slow, 10=fast)", 0.1, 10, 0.1)
 status_id = p.addUserDebugText("Settling...", [0, 0, 0.25], [1, 1, 1], 1.2)
 
 # ── State ──────────────────────────────────────────────────────────────────
@@ -131,9 +131,9 @@ KEY_Q     = ord('q')
 KEY_ESC   = 27
 
 def get_physics_per_step():
-    speed = p.readUserDebugParameter(speed_id)   # 1..10
-    # speed 1 → 0.12 s/step (slow),  speed 10 → 0.03 s/step (fast)
-    sec = lerp(0.12, 0.03, (speed - 1) / 9.0)
+    speed = p.readUserDebugParameter(speed_id)   # 0.1..10
+    # speed 0.1 → 0.12 s/step (slow),  speed 10 → 0.03 s/step (fast)
+    sec = lerp(0.12, 0.03, (speed - 0.1) / 9.9)
     return max(1, int(PHYSICS_HZ * sec))
 
 def apply_joints(step):

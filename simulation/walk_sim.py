@@ -131,7 +131,7 @@ for i in range(p.getNumJoints(robot)):
     )
 
 # ─── Debug UI ────────────────────────────────────────────────────────────────
-speed_id = p.addUserDebugParameter("Speed (1=slow, 10=fast)", 1, 10, 1)
+speed_id = p.addUserDebugParameter("Speed (0.1=slow, 10=fast)", 0.1, 10, 0.1)
 step_btn_id = p.addUserDebugParameter("[S] Step (drag right = +1 frame)", 0, 9999, 0)
 
 # Status text (top-left)
@@ -151,8 +151,8 @@ KEY_ESC = 27
 
 
 def get_step_delay():
-    speed = p.readUserDebugParameter(speed_id)  # 1..10
-    return (11 - speed) * 0.001  # 10ms..1ms
+    speed = p.readUserDebugParameter(speed_id)  # 0.1..10
+    return max(0.0, (10 - speed) / 10 * 0.05)  # 50ms(slow)..0ms(fast)
 
 
 def apply_joints(step=None):
