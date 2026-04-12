@@ -46,7 +46,7 @@ const char* names[8] = {"aa", "af", "ba", "bf", "ca", "cf", "da", "df"};
 // 범위: A:-45~135  B:-135~45  C:45~225  D:-225~-45
 //                          A    B    C    D
 const int logStl[4]     = { 45, -45,  135, -135}; // 중립(대각선) 논리각
-const int logContact[4] = { 45, -45,   75,  -75}; // contact 논리각 (수평 전방 15°)
+const int logContact[4] = { 55, -55,   75,  -75}; // contact 논리각 (수평 전방 15°)
 int stride              = 35;                      // stride (°), toeoff-contact
 // logToeoff: logContact 기준 stride만큼 후방으로 이동
 // A/C(양수): contact+stride  B/D(음수): contact-stride
@@ -70,7 +70,7 @@ const int logFup  =  130;  // 몸 낮게     A,C (phy=90)
 // B,D는 음수 논리각 사용
 // -logFdw=-170 → phy=210+(-170)=40, -logStlF=-135 → phy=75, -logFup=-120 → phy=90
 const int FOOT_LIMIT = 5;  // 양 끝단 여유각
-int cogAlpha         = 35; // CoG pre-shift 이동량 (논리각, cog 명령으로 튜닝)
+int cogAlpha         = 40; // CoG pre-shift 이동량 (논리각, cog 명령으로 튜닝)
 
 // 다리별 foot 논리각 기준값 (A,C 양수 / B,D 음수)
 inline int legFdw (int leg) { return (leg==1||leg==3) ? -logFdw  : logFdw;  }
@@ -484,10 +484,14 @@ void WALK() {
   bool skipB[4] = {true,  false, true,  false};   // A,C 제외, B,D 복귀
   bool skipN[4] = {false, false, false, false};   // 전체 복귀
 
-  cogShift(0); foup(0); armTo(0, logContact[0]); fodw(0); armTo(0, logToeoff(0)); cogRestore(skipA);
-  cogShift(3); foup(3); armTo(3, logContact[3]); fodw(3); armTo(3, logToeoff(3)); cogRestore(skipD);
-  cogShift(1); foup(1); armTo(1, logContact[1]); fodw(1); armTo(1, logToeoff(1)); cogRestore(skipB);
-  cogShift(2); foup(2); armTo(2, logContact[2]); fodw(2); armTo(2, logToeoff(2)); cogRestore(skipN);
+  cogShift(0); foup(0); armTo(0, logContact[0]); cogRestore(skipA); fodw(0); armTo(0, logToeoff(0)); 
+  cogShift(3); foup(3); armTo(3, logContact[3]); cogRestore(skipD); fodw(3); armTo(3, logToeoff(3)); 
+  cogShift(1); foup(1); armTo(1, logContact[1]); cogRestore(skipB); fodw(1); armTo(1, logToeoff(1)); 
+  cogShift(2); foup(2); armTo(2, logContact[2]); cogRestore(skipN); fodw(2); armTo(2, logToeoff(2)); 
+  // cogShift(0); foup(0); armTo(0, logContact[0]); fodw(0); armTo(0, logToeoff(0)); cogRestore(skipA);
+  // cogShift(3); foup(3); armTo(3, logContact[3]); fodw(3); armTo(3, logToeoff(3)); cogRestore(skipD);
+  // cogShift(1); foup(1); armTo(1, logContact[1]); fodw(1); armTo(1, logToeoff(1)); cogRestore(skipB);
+  // cogShift(2); foup(2); armTo(2, logContact[2]); fodw(2); armTo(2, logToeoff(2)); cogRestore(skipN);
 }
 
 void ROUND() {
